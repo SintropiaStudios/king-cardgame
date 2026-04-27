@@ -36,3 +36,4 @@ logs/
 
 ## Node.js ignores
 node_modules/
+\n# Astro\nsrc/nodejs/web-client/.astro/
