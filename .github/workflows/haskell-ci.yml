@@ -1,0 +1,64 @@
+name: Haskell Build & Test
+
+on:
+  push:
+    branches: [ "main" ]
+    # Only trigger if the Haskell code or this workflow file changes
+    paths:
+      - 'src/haskell/king-game/**'
+      - '.github/workflows/haskell-ci.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'src/haskell/king-game/**'
+
+jobs:
+  build:
+    name: GHC ${{ matrix.ghc }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        ghc: ['9.4.8'] # Standard stable GHC, adjust if you are using a newer version locally
+
+    defaults:
+      run:
+        # Point to the isolated Haskell directory
+        working-directory: src/haskell/king-game
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Haskell
+      uses: haskell-actions/setup@v2
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: 'latest'
+
+    - name: Configure Build
+      run: cabal configure --enable-tests
+
+    - name: Cache Cabal Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cabal/packages
+          ~/.cabal/store
+          src/haskell/king-game/dist-newstyle
+        # Invalidate the cache if the .cabal file changes (meaning new dependencies were added)
+        key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('src/haskell/king-game/**/*.cabal') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.ghc }}-
+
+    - name: Install Dependencies
+      run: |
+        cabal update
+        cabal build all --only-dependencies
+
+    - name: Build Server
+      run: cabal build all
+
+    - name: Run Test Suite
+      run: cabal test all
+      
