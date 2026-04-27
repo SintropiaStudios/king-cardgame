@@ -1,9 +1,12 @@
 name: Deploy Astro Web Client to GitHub Pages
 
 on:
-  # Triggers the workflow on pushes to the main branch
+  # Triggers the workflow on pushes to relevant folders on the main branch
   push:
     branches: ["main"]
+    paths:
+      - 'src/nodejs/web-client/**'
+      - '.github/workflows/deploy-web.yml'
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -68,4 +71,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        
