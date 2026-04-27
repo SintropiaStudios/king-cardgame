@@ -7,7 +7,7 @@
 ******************************************************************************/
 
 .card {
-  background-image: url("graphics/cardback.gif");
+  background-image: url("/king-cardgame/graphics/cardback.gif");
   border-color: #808080 #000000 #000000 #808080;
   border-width: 1px;
   border-style: solid;

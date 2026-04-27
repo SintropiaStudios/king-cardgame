@@ -1,0 +1,166 @@
+---
+import { useTranslations } from '../i18n/utils';
+
+interface Props {
+  lang: 'pt-br' | 'en';
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+---
+
+<section id="landing-hero" class="hero">
+  <div class="hero-content">
+    <h1>{t('hero.title')}</h1>
+    <p class="subtitle">{t('hero.subtitle')}</p>
+    
+    <div class="cta-group">
+      <button id="play-button" class="primary-btn">{t('hero.play')}</button>
+      <a href={lang === 'en' ? '/king-cardgame/' : '/king-cardgame/en/'} class="secondary-btn">
+        {lang === 'en' ? 'Português' : 'English'}
+      </a>
+    </div>
+  </div>
+
+  <div class="features-grid">
+    <div class="feature-card placeholder">
+      <div class="icon-box">🃏</div>
+      <h3>{t('features.multiplayer')}</h3>
+      <div class="visual-placeholder"></div>
+    </div>
+    <div class="feature-card placeholder">
+      <div class="icon-box">🌐</div>
+      <h3>{t('features.polyglot')}</h3>
+      <div class="visual-placeholder"></div>
+    </div>
+    <div class="feature-card placeholder">
+      <div class="icon-box">🔓</div>
+      <h3>{t('features.opensource')}</h3>
+      <div class="visual-placeholder"></div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6rem 2rem;
+    text-align: center;
+    background: radial-gradient(circle at center, #1e232d 0%, #13151a 100%);
+    min-height: 80vh;
+    justify-content: center;
+  }
+
+  .hero-content {
+    max-width: 900px;
+    margin-bottom: 4rem;
+  }
+
+  h1 {
+    font-size: 4.5rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+
+  .subtitle {
+    font-size: 1.5rem;
+    color: #b0b0b0;
+    line-height: 1.6;
+    margin-bottom: 2.5rem;
+  }
+
+  .cta-group {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+  }
+
+  .primary-btn {
+    background: var(--accent);
+    color: #13151a;
+    padding: 1rem 2.5rem;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 1.25rem;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+  }
+
+  .primary-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+  }
+
+  .secondary-btn {
+    background: rgba(255,255,255,0.05);
+    color: white;
+    padding: 1rem 2.5rem;
+    border-radius: 50px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: background 0.2s;
+  }
+
+  .secondary-btn:hover {
+    background: rgba(255,255,255,0.1);
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    width: 100%;
+    max-width: 1200px;
+  }
+
+  .feature-card {
+    background: rgba(255,255,255,0.03);
+    padding: 2rem;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: border-color 0.3s;
+  }
+
+  .feature-card:hover {
+    border-color: var(--accent);
+  }
+
+  .icon-box {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: var(--accent);
+  }
+
+  .visual-placeholder {
+    height: 120px;
+    background: repeating-linear-gradient(
+      45deg,
+      rgba(255,255,255,0.02),
+      rgba(255,255,255,0.02) 10px,
+      rgba(255,255,255,0.04) 10px,
+      rgba(255,255,255,0.04) 20px
+    );
+    border-radius: 12px;
+    border: 1px dashed rgba(255,255,255,0.1);
+  }
+
+  @media (max-width: 768px) {
+    h1 { font-size: 3rem; }
+    .subtitle { font-size: 1.2rem; }
+    .cta-group { flex-direction: column; }
+  }
+</style>

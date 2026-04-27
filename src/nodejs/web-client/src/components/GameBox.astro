@@ -1,0 +1,249 @@
+---
+import { useTranslations } from '../i18n/utils';
+
+interface Props {
+  lang: 'pt-br' | 'en';
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+---
+
+<div id="game-arena" class="hidden">
+  <div class="arena-overlay">
+    <div class="arena-header">
+       <button id="exit-game" class="exit-btn">← {lang === 'en' ? 'Back' : 'Voltar'}</button>
+       <div class="loading-status">{t('game.loading')}</div>
+    </div>
+    
+    <main id="game-container">
+        <div id="infobox">
+            <span id="infocontent"></span>
+        </div>
+
+        <!-- Header -->
+        <div id="header">
+            <button id="console-btn">Console</button>
+            <button id="authorize-btn">Authorize Player</button>
+            <button id="start-btn">Join/Start Match</button>
+            <h2>King Online</h2>
+        </div>
+        
+        <!-- Table's area -->
+        <div id="table" class="playingField">
+            <div id="name1" class="textBox name">Right</div>
+            <div id="score1" class="textBox">&nbsp;</div>
+            <div id="name2" class="textBox name">Top</div>
+            <div id="score2" class="textBox">&nbsp;</div>
+            <div id="name3" class="textBox name">Left</div>
+            <div id="score3" class="textBox">&nbsp;</div>
+            <div id="tableCards" class="cardArea"></div>
+        </div>
+
+        <!-- Main player's area -->
+        <div id="player" class="playingField">
+            <div class="textBox name">Player</div>
+            <div id="score0" class="textBox">&nbsp;</div>
+            <div id="playerCards" class="cardArea"></div>
+        </div>
+
+        <div id="command-panel">
+            <ul id="messages"></ul>
+            <form id="command-form">
+                <input id="m" autocomplete="off" placeholder="Enter raw command..." />
+                <button>Send</button>
+            </form>
+        </div>
+    </main>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script is:inline src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script is:inline src="https://code.jquery.com/jquery-3.1.1.js"></script>
+<script is:inline src="/king-cardgame/jquery.keyframes.js"></script>
+<script is:inline src="/king-cardgame/cards.js"></script>
+<script is:inline src="/king-cardgame/king.js"></script>
+
+<script>
+    // Connect to the standalone Node.js Proxy on port 3000
+    // @ts-ignore
+    var socket = io('http://localhost:3000'); 
+    var cur_game = null;
+
+    socket.on('response', function(data) {
+        $('#messages').append($('<li>').text('RESPONSE: ' + data));
+    });
+
+    socket.on('info', function(msg) {
+        $('#messages').append($('<li>').text('INFO: ' + msg).addClass('info'));
+    });
+
+    $('#command-form').submit(function(e){
+        e.preventDefault();
+        socket.emit('action', $('#m').val());
+        $('#m').val('');
+        return false;
+    });
+
+    $('#console-btn').on('click', function(evt) {
+        var elem = $('#command-panel');
+        elem.toggleClass('visible');
+    });
+
+    $('#authorize-btn').on('click', function(evt){
+        if (cur_game === null) {
+            var name = prompt('Enter name:');
+            var password = prompt('Password:');
+            cur_game = new Game(name);
+            authorize(cur_game, password)
+        }
+    });
+
+    $('#start-btn').on('click', function(evt){
+        if (cur_game !== null && cur_game.channel) {
+            hunt_table(cur_game);
+        }
+    });
+
+    // Initialize Animations
+    function initGameAnimations() {
+        var table = $('#tableCards');
+        var tempCard = $((new Card('2','C')).createNode()).css('visibility','hidden').appendTo(table);
+        var middleTable = { 
+            x: table.innerWidth() / 2 - tempCard.width() / 2,
+            y: table.innerHeight() / 2 - tempCard.height() / 2
+        };
+
+        $.keyframe.define([{
+            name: `tableCard${PlayerPosition.BOTTOM}`,
+            from: { transform: `translate(${middleTable.x}px, ${table.innerHeight() + 100}px)` },
+            to: { transform: `translate(${middleTable.x}px, ${middleTable.y + 50}px)` }
+        }, {
+            name: `tableCard${PlayerPosition.RIGHT}`,
+            from: { transform: `translate(${table.innerWidth() + 100}px, ${middleTable.y}px)` },
+            to: { transform: `translate(${middleTable.x + 50}px, ${middleTable.y}px)` }
+        }, {
+            name: `tableCard${PlayerPosition.TOP}`,
+            from: { transform: `translate(${middleTable.x}px, -100px)` },
+            to: { transform: `translate(${middleTable.x}px, ${middleTable.y - 50}px)` }
+        }, {
+            name: `tableCard${PlayerPosition.LEFT}`,
+            from: { transform: `translate(-100px, ${middleTable.y}px)` },
+            to: { transform: `translate(${middleTable.x - 50}px, ${middleTable.y}px)` }
+        }]);
+
+        var hand = $('#playerCards');
+        var middle = hand.innerWidth() / 2;
+        for (var i=0; i<13; i++) {
+            $.keyframe.define([{
+                name: `handCard${i}`,
+                from: { transform: `translateX(${middle}px)` },
+                to: { transform: `translateX(${2*i}em)` }
+            }, {
+                name: 'playHandCard',
+                from: { transform: `translate(${2*i}em, 0em)`, opacity: 1, visibility: 'visible' },
+                to: { transform: `translate(${middle}px, -10em)`, opacity: 0, visibility: 'hidden' }
+            }]);
+        }
+    }
+
+    // Toggle Visibility
+    document.getElementById('play-button')?.addEventListener('click', () => {
+        document.getElementById('landing-hero').classList.add('fade-out');
+        setTimeout(() => {
+            document.getElementById('landing-hero').style.display = 'none';
+            document.getElementById('game-arena').classList.remove('hidden');
+            document.getElementById('game-arena').classList.add('fade-in');
+            initGameAnimations();
+        }, 500);
+    });
+
+    document.getElementById('exit-game')?.addEventListener('click', () => {
+        document.getElementById('game-arena').classList.add('fade-out');
+        setTimeout(() => {
+            document.getElementById('game-arena').style.display = 'none';
+            document.getElementById('landing-hero').style.display = 'flex';
+            document.getElementById('landing-hero').classList.remove('fade-out');
+            document.getElementById('landing-hero').classList.add('fade-in');
+        }, 500);
+    });
+</script>
+
+<style>
+  #game-arena {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #002200; /* Dark felt green */
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .hidden { display: none !important; }
+
+  .arena-overlay {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .arena-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 1rem;
+  }
+
+  .exit-btn {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .loading-status {
+    color: var(--accent);
+    font-size: 0.9rem;
+    font-weight: bold;
+  }
+
+  #game-container {
+    background: #004d00;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    border: 8px solid #332211; /* Wooden frame effect */
+    margin: auto;
+    width: 100%;
+  }
+
+  /* Animations */
+  .fade-out {
+    animation: fadeOut 0.5s forwards;
+  }
+  .fade-in {
+    animation: fadeIn 0.5s forwards;
+  }
+
+  @keyframes fadeOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.95); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(1.05); }
+    to { opacity: 1; transform: scale(1); }
+  }
+</style>
