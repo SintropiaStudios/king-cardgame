@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BUILD_PATH: "client-only/web-client" # Adjust this to the exact folder where you initialized Astro
+  BUILD_PATH: "src/nodejs/web-client"
 
 jobs:
   build:
