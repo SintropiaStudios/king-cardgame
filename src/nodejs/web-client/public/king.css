@@ -1,0 +1,218 @@
+* { 
+    margin: 0; padding: 0; box-sizing: border-box; 
+}
+
+#console-btn { 
+    position: absolute; left: 1em; padding: 3px;
+    border-radius: 25%; 
+}
+
+#start-btn { 
+    position: absolute; left: 12em; padding: 3px;
+    border-radius: 25%; 
+}
+
+#authorize-btn { 
+    position: absolute; left: 3em; padding: 3px;
+    border-radius: 25%; 
+}
+
+#command-panel { 
+    top:50px; bottom:0px; width:450px; position: absolute;
+    visibility: hidden; opacity: 0; left:-450px;
+    transition: all 1s ease-in-out;
+}
+
+#command-panel.visible {
+    visibility: visible; opacity: 1; left:0px
+}
+
+form { 
+    background: #000; padding: 3px; position: absolute; top: 90%; width: 100%; 
+}
+    
+form input { 
+    border: 0; padding: 10px; width: 90%; margin-right: .5%; 
+}
+    
+form button { 
+    width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; 
+}
+
+#messages { 
+    list-style-type: none; margin: 0; padding: 0; position: absolute;
+    height: 90%; right: 0px; left: 0px; overflow-y: scroll; 
+    text-align: left; font-size:7pt; background: #fff
+}
+
+#messages li { 
+    padding: 5px 10px; 
+}
+
+#messages li.info { 
+    color: #F22 
+}
+
+#messages li:nth-child(odd) { 
+    background: #eee; 
+}
+
+@keyframes showinfo {
+    0%, 100% {visibility: hidden; opacity: 0;}
+    50% {visibility: visible; opacity: 1;}
+}
+
+#infobox {
+    position:fixed;    
+    top: 50%;
+    left: 50%;
+    width:34em;
+    height:8em;
+    margin-top: -4em; /*set to a negative number 1/2 of your height*/
+    margin-left: -17em; /*set to a negative number 1/2 of your width*/
+    background-color: #f3f3f3;
+    visibility: hidden;
+    opacity: 0;
+    z-index: 100; /*Something high to guarantee*/
+}
+
+#infocontent {
+    font-family: 'Lucida Sans';
+    font-size:1.5em;
+    display: inline-block;
+    position: relative;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: inherit;
+}
+
+#choiceArea {
+    position:fixed;    
+    top: 50%;
+    left: 50%;
+    width:34em;
+    height:10em;
+    margin-top: -4em; /*set to a negative number 1/2 of your height*/
+    margin-left: -17em; /*set to a negative number 1/2 of your width*/
+    background-color: #f3f3f3;
+    visibility: hidden;
+    opacity: 0;
+}
+
+#choiceArea h2 {
+    margin: 0.3em;
+}
+
+#choiceArea p {
+    margin-top: 0.3em;
+}
+
+#choiceArea button {
+    margin: 0.3em 0.2em
+}
+
+#choiceArea.active {
+    visibility: visible;
+    opacity: 1;
+}
+
+/******************************************************************************
+* Styles for page and game areas.                                             *
+*                                                                             *
+* Copyright 2001 by Mike Hall                                                 *
+* Please see http://www.brainjar.com for terms of use.                        *
+* http://www.brainjar.com/terms.asp                                           *
+******************************************************************************/
+
+body {
+background-color: #40a040;
+font-family: Arial, Helvetica, sans-serif;
+font-size: 10pt;
+margin-top: 1em;
+text-align: center;
+}
+
+#header
+{
+    background-color: #208020;
+    border-color: #60c060 #006000 #006000 #60c060;
+    border-style: solid;
+    border-width: 1px;
+    color: #ffffc0;
+    margin-bottom: 1ex;
+    padding: 4px 1em;
+}
+
+#header h2
+{
+    margin: 0px;
+    padding: 0px;
+}
+
+.playingField {
+border-color:  #208020 #60c060 #60c060 #208020;
+border-style: solid;
+border-width: 1px;
+color: #000000;
+margin-bottom: 8px;
+padding: 4px;
+text-align: left;
+}
+
+.activeField {
+background-color: #60c060;
+border-color:  #006000 #90f090 #90f090 #006000;
+}
+
+#table .cardArea {
+    font-size: 20pt;
+    height: 10em;
+    position: relative;
+    overflow: hidden;
+}
+
+#player .cardArea {
+    font-size: 20pt;
+    height: 5em;
+    position: relative;
+    overflow: hidden;
+}
+
+.textBox {
+background-color: #ffffc0;
+border-color:  #006000 #90f090 #90f090 #006000;
+border-style: solid;
+border-width: 1px;
+clear: right;
+color: #000000;
+float: right;
+font-family: "Times New Roman", serif;
+font-size: 11pt;
+font-weight: bold;
+margin-bottom: .5em;
+padding: .1em;
+text-align: center;
+width: 12em;
+}
+
+.name {
+background-color: #208020;
+border-color: #60c060 #006000 #006000 #60c060;
+color: #ffffc0;
+}
+
+.result { color: #c00000; }
+
+.dollars { color: #006000; }
+
+.lost { color: #80b060; }
+
+#controlsArea {
+margin-top: 0.5em;
+text-align: left;
+}
+
+input.button {
+margin-top: .25em;
+width: 8em;
+}

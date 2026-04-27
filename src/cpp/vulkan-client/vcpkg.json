@@ -1,0 +1,14 @@
+{
+  "name": "king-game",
+  "version": "1.0.0",
+  "dependencies": [
+    {
+      "name": "sdl2",
+      "features": [
+        "vulkan",
+        "wayland",
+        "x11"
+      ]
+    }
+  ]
+}

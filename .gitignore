@@ -1,0 +1,38 @@
+## Haskell ignores
+dist-newstyle/
+
+# GHC artifacts
+*.hi
+*.o
+*.dyn_hi
+*.dyn_o
+*.prof
+*.aux
+*.hp
+*.eventlog
+
+## C++
+build/
+
+## Python ignores
+*.pyc
+
+## Rust
+target/
+
+## VS and VS Code ignores
+*.log
+*.exe
+*.suo
+*.sdf
+*.opensdf
+*.swp
+Thumbs.db
+Debug/
+bin/
+obj/
+.vscode/
+logs/
+
+## Node.js ignores
+node_modules/

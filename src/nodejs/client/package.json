@@ -1,0 +1,32 @@
+{
+  "name": "public-king-nodejs-client",
+  "version": "1.0.0",
+  "description": "Web-based client for the Public King card game ecosystem using Socket.io and ZeroMQ.",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SintropiaStudios/public-king.git"
+  },
+  "keywords": [
+    "king",
+    "cardgame",
+    "zeromq",
+    "socket.io",
+    "multiplayer"
+  ],
+  "author": "Julio Raffaine <julio.raffaine@sintropiastudios.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/SintropiaStudios/public-king/issues"
+  },
+  "homepage": "https://github.com/SintropiaStudios/public-king#readme",
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "zeromq": "^6.0.0-beta.19"
+  }
+}
