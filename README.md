@@ -52,7 +52,7 @@ King is more than an exercise in protocol architecture; it carries a deep person
 
 Contributions of all kinds are welcome! Whether it's a new client implementation, fixes for the Haskell server, or improvements to the protocol documentation.
 
-*See [CONTRIBUTING.md](CONTRIBUTING.md) (coming soon) for details.*
+*See [CONTRIBUTING.md](CONTRIBUTING.md) for details.*
 
 ---
 

@@ -51,7 +51,7 @@ Se você estiver enviando uma correção ou atualização de documentação para
 
 ## Código de Conduta
 
-Ao participar deste projeto, você concorda em cumprir nosso [Código de Conduta](CODE_OF_CONDUCT.md). Estamos empenhados em fornecer um ambiente acolhedor e inspirador para todos os desenvolvedores, independentemente de sua formação ou nível de experiência.
+Ao participar deste projeto, você concorda em cumprir nosso [Código de Conduta](CODE_OF_CONDUCT.br.md). Estamos empenhados em fornecer um ambiente acolhedor e inspirador para todos os desenvolvedores, independentemente de sua formação ou nível de experiência.
 
 ---
 

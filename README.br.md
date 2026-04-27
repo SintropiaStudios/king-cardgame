@@ -52,7 +52,7 @@ King é mais do que um exercício de arquitetura de protocolo; carrega uma profu
 
 Contribuições de todos os tipos são bem-vindas! Seja uma nova implementação de cliente, correções no servidor Haskell ou melhorias na documentação do protocolo.
 
-*Veja o [CONTRIBUTING.md](CONTRIBUTING.md) (em breve) para detalhes.*
+*Veja o [CONTRIBUTING.br.md](CONTRIBUTING.br.md) para detalhes.*
 
 ---
 
