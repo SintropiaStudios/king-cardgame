@@ -22,7 +22,7 @@ COPY . .
 
 # Update cabal and build the executable
 RUN cabal update && \
-    cabal install exe:ServerMain \
+    cabal install exe:king-game-server-exe \
     --installdir=/opt/build/bin \
     --overwrite-policy=always
 
@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /opt/build/bin/ServerMain /usr/local/bin/king-server
+COPY --from=builder /opt/build/bin/king-game-server-exe /usr/local/bin/king-server
 
 # Expose the REQ/REP and PUB/SUB ports
 EXPOSE 5555 5556
