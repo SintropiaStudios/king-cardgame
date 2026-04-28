@@ -9,66 +9,88 @@ const base = lang === 'en' ? '/king-cardgame/en' : '/king-cardgame';
 ---
 
 <Layout title={t('clients.title')} lang={lang}>
-	<main class="content-page">
-		<header class="hero-small">
-			<a href={base} class="back-link">← Back</a>
-			<h1>{t('clients.title')}</h1>
-			<p class="subtitle">{t('clients.intro')}</p>
-		</header>
+	<div class="page-wrapper">
+		<main class="content-page">
+			<header class="hero-small">
+				<a href={base} class="back-link">← Back</a>
+				<h1>{t('clients.title')}</h1>
+				<p class="subtitle">{t('clients.intro')}</p>
+			</header>
 
-		<div class="clients-grid">
-			<div class="client-card">
-				<div class="tag server">Server</div>
-				<h3>Haskell King Server</h3>
-				<p>The authoritative core of the game. Manages rules, state, and communications via ZMQ.</p>
-				<code>src/haskell/king-game</code>
-			</div>
+			<div class="clients-grid">
+				<div class="client-card">
+					<div class="tags-container">
+						<span class="tag server">Server</span>
+						<span class="tag client">Client</span>
+						<span class="tag bot">Bot</span>
+					</div>
+					<h3>Haskell King Server</h3>
+					<p>The authoritative core of the game. Manages rules, state, and communications via ZMQ. Includes client and bot reference implementations.</p>
+					<code>src/haskell/king-game</code>
+				</div>
 
-			<div class="client-card">
-				<div class="tag client">Web</div>
-				<h3>Node.js & Astro Client</h3>
-				<p>This web interface, using Socket.io as a gateway to the ZMQ server.</p>
-				<code>src/nodejs/web-client</code>
-			</div>
+				<div class="client-card">
+					<div class="tags-container">
+						<span class="tag client">Web</span>
+					</div>
+					<h3>Node.js & Astro Client</h3>
+					<p>This web interface, using Socket.io as a gateway to the ZMQ server.</p>
+					<code>src/nodejs/web-client</code>
+				</div>
 
-			<div class="client-card">
-				<div class="tag client">Native</div>
-				<h3>C++ Vulkan Client</h3>
-				<p>High-performance implementation with native Vulkan rendering.</p>
-				<code>src/cpp/vulkan-client</code>
-			</div>
+				<div class="client-card">
+					<div class="tags-container">
+						<span class="tag client">Native</span>
+					</div>
+					<h3>C++ Vulkan Client</h3>
+					<p>High-performance implementation with native Vulkan rendering.</p>
+					<code>src/cpp/vulkan-client</code>
+				</div>
 
-			<div class="client-card">
-				<div class="tag bot">AI</div>
-				<h3>Rust Random Bot</h3>
-				<p>An automated agent demonstrating how to interact with the protocol via Rust.</p>
-				<code>src/rust/client</code>
-			</div>
+				<div class="client-card">
+					<div class="tags-container">
+						<span class="tag bot">Bot</span>
+					</div>
+					<h3>Rust Random Bot</h3>
+					<p>An automated agent demonstrating how to interact with the protocol via Rust.</p>
+					<code>src/rust/client</code>
+				</div>
 
-			<div class="client-card">
-				<div class="tag client">Desktop</div>
-				<h3>C# MonoGame Client</h3>
-				<p>Cross-platform client built with the MonoGame framework.</p>
-				<code>src/csharp/client</code>
-			</div>
+				<div class="client-card">
+					<div class="tags-container">
+						<span class="tag client">Desktop</span>
+					</div>
+					<h3>C# MonoGame Client</h3>
+					<p>Cross-platform client built with the MonoGame framework.</p>
+					<code>src/csharp/client</code>
+				</div>
 
-			<div class="client-card">
-				<div class="tag server">Reference</div>
-				<h3>Python Core</h3>
-				<p>The original reference implementation. Contains core logic and test scripts.</p>
-				<code>src/python</code>
+				<div class="client-card">
+					<div class="tags-container">
+						<span class="tag server">Server</span>
+						<span class="tag client">Client</span>
+						<span class="tag bot">Bot</span>
+					</div>
+					<h3>Python Core</h3>
+					<p>The original reference implementation. Contains core logic, dev server, and test scripts.</p>
+					<code>src/python</code>
+				</div>
 			</div>
-		</div>
-	</main>
+		</main>
+	</div>
 </Layout>
 
 <style>
+	.page-wrapper {
+		min-height: 100vh;
+		width: 100%;
+		background: radial-gradient(circle at top, #1e232d 0%, #13151a 100%);
+	}
+
 	.content-page {
 		max-width: 1200px;
 		margin: 0 auto;
 		padding: 6rem 2rem;
-		min-height: 100vh;
-		background: radial-gradient(circle at top, #1e232d 0%, #13151a 100%);
 	}
 
 	.hero-small {
@@ -125,14 +147,19 @@ const base = lang === 'en' ? '/king-cardgame/en' : '/king-cardgame';
 		border-color: var(--accent);
 	}
 
+	.tags-container {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 1.5rem;
+	}
+
 	.tag {
-		align-self: flex-start;
 		padding: 0.35rem 0.85rem;
 		border-radius: 6px;
 		font-size: 0.7rem;
 		font-weight: 800;
 		text-transform: uppercase;
-		margin-bottom: 1.5rem;
 		letter-spacing: 0.05em;
 	}
 

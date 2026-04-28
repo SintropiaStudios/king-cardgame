@@ -124,14 +124,6 @@ form button {
 * http://www.brainjar.com/terms.asp                                           *
 ******************************************************************************/
 
-body {
-background-color: #40a040;
-font-family: Arial, Helvetica, sans-serif;
-font-size: 10pt;
-margin-top: 1em;
-text-align: center;
-}
-
 #header
 {
     background-color: #208020;

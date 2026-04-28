@@ -9,54 +9,60 @@ const base = lang === 'en' ? '/king-cardgame/en' : '/king-cardgame';
 ---
 
 <Layout title={t('rules.title')} lang={lang}>
-	<main class="content-page">
-		<header class="hero-small">
-			<a href={base} class="back-link">← Voltar</a>
-			<h1>{t('rules.title')}</h1>
-			<p class="subtitle">{t('rules.intro')}</p>
-		</header>
+	<div class="page-wrapper">
+		<main class="content-page">
+			<header class="hero-small">
+				<a href={base} class="back-link">← Voltar</a>
+				<h1>{t('rules.title')}</h1>
+				<p class="subtitle">{t('rules.intro')}</p>
+			</header>
 
-		<div class="rules-grid">
-			<section class="info-card">
-				<h2>{t('rules.agency.title')}</h2>
-				<p>{t('rules.agency.desc')}</p>
-			</section>
+			<div class="rules-grid">
+				<section class="info-card">
+					<h2>{t('rules.agency.title')}</h2>
+					<p>{t('rules.agency.desc')}</p>
+				</section>
 
-			<section class="info-card">
-				<h2>{t('rules.negative.title')}</h2>
-				<p>{t('rules.negative.desc')}</p>
-				<ul class="rule-list">
-					<li><strong>Copas:</strong> -20 pontos por carta</li>
-					<li><strong>Damas:</strong> -50 pontos por carta</li>
-					<li><strong>Rei de Copas:</strong> -160 pontos</li>
-					<li><strong>Vazas:</strong> -20 pontos por vaza</li>
-				</ul>
-			</section>
+				<section class="info-card">
+					<h2>{t('rules.negative.title')}</h2>
+					<p>{t('rules.negative.desc')}</p>
+					<ul class="rule-list">
+						<li><strong>Copas:</strong> -20 pontos por carta</li>
+						<li><strong>Damas:</strong> -50 pontos por carta</li>
+						<li><strong>Rei de Copas:</strong> -160 pontos</li>
+						<li><strong>Vazas:</strong> -20 pontos por vaza</li>
+					</ul>
+				</section>
 
-			<section class="info-card">
-				<h2>{t('rules.positive.title')}</h2>
-				<p>{t('rules.positive.desc')}</p>
-			</section>
+				<section class="info-card">
+					<h2>{t('rules.positive.title')}</h2>
+					<p>{t('rules.positive.desc')}</p>
+				</section>
 
-			<section class="info-card">
-				<h2>{t('rules.king.title')}</h2>
-				<p>{t('rules.king.desc')}</p>
-			</section>
-		</div>
+				<section class="info-card">
+					<h2>{t('rules.king.title')}</h2>
+					<p>{t('rules.king.desc')}</p>
+				</section>
+			</div>
 
-		<footer class="content-footer">
-			<p>A tradição "Aloja" é sobre estratégia, blefe e adaptação constante.</p>
-		</footer>
-	</main>
+			<footer class="content-footer">
+				<p>A tradição "Aloja" é sobre estratégia, blefe e adaptação constante.</p>
+			</footer>
+		</main>
+	</div>
 </Layout>
 
 <style>
+	.page-wrapper {
+		min-height: 100vh;
+		width: 100%;
+		background: radial-gradient(circle at top, #1e232d 0%, #13151a 100%);
+	}
+
 	.content-page {
 		max-width: 1200px;
 		margin: 0 auto;
 		padding: 6rem 2rem;
-		min-height: 100vh;
-		background: radial-gradient(circle at top, #1e232d 0%, #13151a 100%);
 	}
 
 	.hero-small {
