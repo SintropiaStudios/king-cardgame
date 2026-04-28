@@ -4,117 +4,155 @@ import { useTranslations } from '../../i18n/utils';
 
 const lang = 'en';
 const t = useTranslations(lang);
+
+const base = lang === 'en' ? '/king-cardgame/en' : '/king-cardgame';
 ---
 
 <Layout title={t('rules.title')} lang={lang}>
 	<main class="content-page">
 		<header class="hero-small">
-			<a href="/king-cardgame/en/" class="back-link">← Back</a>
+			<a href={base} class="back-link">← Back</a>
 			<h1>{t('rules.title')}</h1>
-			<p>{t('rules.intro')}</p>
+			<p class="subtitle">{t('rules.intro')}</p>
 		</header>
 
-		<article class="rules-content">
-			<section>
-				<h2>What is King?</h2>
-				<p>King is a trick-taking game for 4 players, played with a standard 52-card deck. The objective varies depending on the contract chosen for each round.</p>
+		<div class="rules-grid">
+			<section class="info-card">
+				<h2>{t('rules.agency.title')}</h2>
+				<p>{t('rules.agency.desc')}</p>
 			</section>
 
-			<section>
-				<h2>The "Aloja" Variant</h2>
-				<p>In this traditional version, the game is divided into two main phases: Negatives and Positives.</p>
-				
-				<div class="rules-grid">
-					<div class="rule-box">
-						<h3>Negative Phase</h3>
-						<ul>
-							<li><strong>No Tricks:</strong> Each trick taken costs points.</li>
-							<li><strong>No Hearts:</strong> Hearts taken cost points.</li>
-							<li><strong>No Queens:</strong> Each Queen taken costs points.</li>
-							<li><strong>No King of Hearts:</strong> The King taken costs many negative points.</li>
-						</ul>
-					</div>
-					<div class="rule-box">
-						<h3>Positive Phase</h3>
-						<ul>
-							<li><strong>Trump Contracts:</strong> The player chooses a trump suit and tries to win as many tricks as possible.</li>
-						</ul>
-					</div>
-				</div>
+			<section class="info-card">
+				<h2>{t('rules.negative.title')}</h2>
+				<p>{t('rules.negative.desc')}</p>
+				<ul class="rule-list">
+					<li><strong>Hearts:</strong> -20 points per card</li>
+					<li><strong>Queens:</strong> -50 points per card</li>
+					<li><strong>King of Hearts:</strong> -160 points</li>
+					<li><strong>Tricks:</strong> -20 points per trick</li>
+				</ul>
 			</section>
 
-			<section>
-				<h2>Strategy Tips</h2>
-				<p>Keep track of played cards, especially during negative rounds. In King, knowing when to lose a trick is just as important as knowing when to win.</p>
+			<section class="info-card">
+				<h2>{t('rules.positive.title')}</h2>
+				<p>{t('rules.positive.desc')}</p>
 			</section>
-		</article>
+
+			<section class="info-card">
+				<h2>{t('rules.king.title')}</h2>
+				<p>{t('rules.king.desc')}</p>
+			</section>
+		</div>
+
+		<footer class="content-footer">
+			<p>The "Aloja" tradition is about strategy, bluffing, and constant adaptation.</p>
+		</footer>
 	</main>
 </Layout>
 
 <style>
 	.content-page {
-		max-width: 1000px;
+		max-width: 1200px;
 		margin: 0 auto;
-		padding: 4rem 2rem;
+		padding: 6rem 2rem;
+		min-height: 100vh;
+		background: radial-gradient(circle at top, #1e232d 0%, #13151a 100%);
 	}
 
 	.hero-small {
-		margin-bottom: 4rem;
+		margin-bottom: 5rem;
 		text-align: center;
 	}
 
 	.back-link {
 		color: var(--accent);
 		text-decoration: none;
-		display: block;
+		display: inline-block;
 		margin-bottom: 2rem;
+		font-weight: 600;
+		transition: opacity 0.2s;
+	}
+
+	.back-link:hover {
+		opacity: 0.8;
 	}
 
 	h1 {
-		font-size: 3rem;
-		margin-bottom: 1rem;
-		color: var(--accent);
-	}
-
-	.rules-content {
-		line-height: 1.8;
-		color: #ddd;
-	}
-
-	section {
-		margin-bottom: 3rem;
-	}
-
-	h2 {
-		color: var(--accent);
+		font-size: 4rem;
 		margin-bottom: 1.5rem;
-		border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-		padding-bottom: 0.5rem;
+		background: var(--accent-gradient);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+	}
+
+	.subtitle {
+		font-size: 1.4rem;
+		color: #b0b0b0;
+		max-width: 800px;
+		margin: 0 auto;
 	}
 
 	.rules-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-		gap: 2rem;
-		margin-top: 2rem;
+		grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+		gap: 2.5rem;
 	}
 
-	.rule-box {
-		background: rgba(255,255,255,0.05);
-		padding: 1.5rem;
-		border-radius: 12px;
+	.info-card {
+		background: rgba(255,255,255,0.03);
+		padding: 3rem;
+		border-radius: 24px;
+		border: 1px solid rgba(255,255,255,0.05);
+		transition: transform 0.3s ease;
 	}
 
-	h3 {
-		color: white;
-		margin-bottom: 1rem;
+	.info-card:hover {
+		transform: translateY(-5px);
+		border-color: var(--accent);
 	}
 
-	ul {
-		padding-left: 1.2rem;
+	h2 {
+		font-size: 2rem;
+		color: var(--accent);
+		margin-bottom: 1.5rem;
 	}
 
-	li {
-		margin-bottom: 0.5rem;
+	p {
+		color: #ccc;
+		line-height: 1.8;
+		font-size: 1.1rem;
+	}
+
+	.rule-list {
+		margin-top: 1.5rem;
+		list-style: none;
+		padding: 0;
+	}
+
+	.rule-list li {
+		margin-bottom: 0.75rem;
+		color: #aaa;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.rule-list li::before {
+		content: "•";
+		color: var(--accent);
+		font-weight: bold;
+	}
+
+	.content-footer {
+		margin-top: 6rem;
+		text-align: center;
+		color: #666;
+		font-style: italic;
+	}
+
+	@media (max-width: 768px) {
+		h1 { font-size: 2.5rem; }
+		.rules-grid { grid-template-columns: 1fr; }
+		.info-card { padding: 2rem; }
 	}
 </style>
