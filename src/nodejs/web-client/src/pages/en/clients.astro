@@ -1,0 +1,127 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { useTranslations } from '../../i18n/utils';
+
+const lang = 'en';
+const t = useTranslations(lang);
+---
+
+<Layout title={t('clients.title')} lang={lang}>
+	<main class="content-page">
+		<header class="hero-small">
+			<a href="/king-cardgame/en/" class="back-link">← Back</a>
+			<h1>{t('clients.title')}</h1>
+			<p>{t('clients.intro')}</p>
+		</header>
+
+		<div class="clients-grid">
+			<div class="client-card">
+				<div class="tag server">Server</div>
+				<h3>Haskell King Server</h3>
+				<p>The authoritative core of the game. Manages rules, state, and communications via ZMQ.</p>
+				<code>src/haskell/king-game</code>
+			</div>
+
+			<div class="client-card">
+				<div class="tag client">Web</div>
+				<h3>Node.js & Astro Client</h3>
+				<p>This web interface, using Socket.io as a gateway to the ZMQ server.</p>
+				<code>src/nodejs/web-client</code>
+			</div>
+
+			<div class="client-card">
+				<div class="tag client">Native</div>
+				<h3>C++ Vulkan Client</h3>
+				<p>High-performance implementation with native Vulkan rendering.</p>
+				<code>src/cpp/vulkan-client</code>
+			</div>
+
+			<div class="client-card">
+				<div class="tag bot">AI</div>
+				<h3>Rust Random Bot</h3>
+				<p>An automated agent demonstrating how to interact with the protocol via Rust.</p>
+				<code>src/rust/client</code>
+			</div>
+
+			<div class="client-card">
+				<div class="tag client">Desktop</div>
+				<h3>C# MonoGame Client</h3>
+				<p>Cross-platform client built with the MonoGame framework.</p>
+				<code>src/csharp/client</code>
+			</div>
+		</div>
+	</main>
+</Layout>
+
+<style>
+	.content-page {
+		max-width: 1000px;
+		margin: 0 auto;
+		padding: 4rem 2rem;
+	}
+
+	.hero-small {
+		margin-bottom: 4rem;
+		text-align: center;
+	}
+
+	.back-link {
+		color: var(--accent);
+		text-decoration: none;
+		display: block;
+		margin-bottom: 2rem;
+	}
+
+	h1 {
+		font-size: 3rem;
+		margin-bottom: 1rem;
+		color: var(--accent);
+	}
+
+	.clients-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+		gap: 2rem;
+	}
+
+	.client-card {
+		background: rgba(255,255,255,0.05);
+		padding: 2rem;
+		border-radius: 16px;
+		border: 1px solid rgba(255,255,255,0.1);
+	}
+
+	.tag {
+		display: inline-block;
+		padding: 0.25rem 0.75rem;
+		border-radius: 4px;
+		font-size: 0.75rem;
+		font-weight: bold;
+		text-transform: uppercase;
+		margin-bottom: 1rem;
+	}
+
+	.server { background: #4a148c; color: white; }
+	.client { background: #1b5e20; color: white; }
+	.bot { background: #b71c1c; color: white; }
+
+	h3 {
+		margin-bottom: 1rem;
+		color: white;
+	}
+
+	p {
+		color: #ccc;
+		line-height: 1.6;
+		margin-bottom: 1.5rem;
+	}
+
+	code {
+		display: block;
+		background: black;
+		padding: 0.5rem;
+		border-radius: 4px;
+		font-size: 0.85rem;
+		color: var(--accent);
+	}
+</style>

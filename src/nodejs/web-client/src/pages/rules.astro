@@ -1,0 +1,120 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { useTranslations } from '../i18n/utils';
+
+const lang = 'pt-br';
+const t = useTranslations(lang);
+---
+
+<Layout title={t('rules.title')} lang={lang}>
+	<main class="content-page">
+		<header class="hero-small">
+			<a href="/king-cardgame/" class="back-link">← Voltar</a>
+			<h1>{t('rules.title')}</h1>
+			<p>{t('rules.intro')}</p>
+		</header>
+
+		<article class="rules-content">
+			<section>
+				<h2>O Que é o King?</h2>
+				<p>King é um jogo de vazas para 4 jogadores, jogado com um baralho padrão de 52 cartas. O objetivo varia conforme o contrato escolhido para cada rodada.</p>
+			</section>
+
+			<section>
+				<h2>A Variante "Aloja"</h2>
+				<p>Nesta versão tradicional, o jogo é dividido em duas fases principais: Negativas e Positivas.</p>
+				
+				<div class="rules-grid">
+					<div class="rule-box">
+						<h3>Fase Negativa</h3>
+						<ul>
+							<li><strong>Não Fazer Vazas:</strong> Cada vaza custa pontos.</li>
+							<li><strong>Não Fazer Copas:</strong> Copas custam pontos.</li>
+							<li><strong>Não Fazer Damas:</strong> Cada Dama custa pontos.</li>
+							<li><strong>Não Fazer o Rei de Copas:</strong> O King vale muitos pontos negativos.</li>
+						</ul>
+					</div>
+					<div class="rule-box">
+						<h3>Fase Positiva</h3>
+						<ul>
+							<li><strong>Contratos de Trunfo:</strong> O jogador escolhe um trunfo e tenta fazer o máximo de vazas possível.</li>
+						</ul>
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h2>Dicas de Estratégia</h2>
+				<p>Mantenha o controle das cartas jogadas, especialmente nas negativas. No King, saber quando perder uma vaza é tão importante quanto saber quando ganhar.</p>
+			</section>
+		</article>
+	</main>
+</Layout>
+
+<style>
+	.content-page {
+		max-width: 1000px;
+		margin: 0 auto;
+		padding: 4rem 2rem;
+	}
+
+	.hero-small {
+		margin-bottom: 4rem;
+		text-align: center;
+	}
+
+	.back-link {
+		color: var(--accent);
+		text-decoration: none;
+		display: block;
+		margin-bottom: 2rem;
+	}
+
+	h1 {
+		font-size: 3rem;
+		margin-bottom: 1rem;
+		color: var(--accent);
+	}
+
+	.rules-content {
+		line-height: 1.8;
+		color: #ddd;
+	}
+
+	section {
+		margin-bottom: 3rem;
+	}
+
+	h2 {
+		color: var(--accent);
+		margin-bottom: 1.5rem;
+		border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+		padding-bottom: 0.5rem;
+	}
+
+	.rules-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 2rem;
+		margin-top: 2rem;
+	}
+
+	.rule-box {
+		background: rgba(255,255,255,0.05);
+		padding: 1.5rem;
+		border-radius: 12px;
+	}
+
+	h3 {
+		color: white;
+		margin-bottom: 1rem;
+	}
+
+	ul {
+		padding-left: 1.2rem;
+	}
+
+	li {
+		margin-bottom: 0.5rem;
+	}
+</style>

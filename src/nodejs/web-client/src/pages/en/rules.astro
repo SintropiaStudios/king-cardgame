@@ -1,0 +1,120 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { useTranslations } from '../../i18n/utils';
+
+const lang = 'en';
+const t = useTranslations(lang);
+---
+
+<Layout title={t('rules.title')} lang={lang}>
+	<main class="content-page">
+		<header class="hero-small">
+			<a href="/king-cardgame/en/" class="back-link">← Back</a>
+			<h1>{t('rules.title')}</h1>
+			<p>{t('rules.intro')}</p>
+		</header>
+
+		<article class="rules-content">
+			<section>
+				<h2>What is King?</h2>
+				<p>King is a trick-taking game for 4 players, played with a standard 52-card deck. The objective varies depending on the contract chosen for each round.</p>
+			</section>
+
+			<section>
+				<h2>The "Aloja" Variant</h2>
+				<p>In this traditional version, the game is divided into two main phases: Negatives and Positives.</p>
+				
+				<div class="rules-grid">
+					<div class="rule-box">
+						<h3>Negative Phase</h3>
+						<ul>
+							<li><strong>No Tricks:</strong> Each trick taken costs points.</li>
+							<li><strong>No Hearts:</strong> Hearts taken cost points.</li>
+							<li><strong>No Queens:</strong> Each Queen taken costs points.</li>
+							<li><strong>No King of Hearts:</strong> The King taken costs many negative points.</li>
+						</ul>
+					</div>
+					<div class="rule-box">
+						<h3>Positive Phase</h3>
+						<ul>
+							<li><strong>Trump Contracts:</strong> The player chooses a trump suit and tries to win as many tricks as possible.</li>
+						</ul>
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h2>Strategy Tips</h2>
+				<p>Keep track of played cards, especially during negative rounds. In King, knowing when to lose a trick is just as important as knowing when to win.</p>
+			</section>
+		</article>
+	</main>
+</Layout>
+
+<style>
+	.content-page {
+		max-width: 1000px;
+		margin: 0 auto;
+		padding: 4rem 2rem;
+	}
+
+	.hero-small {
+		margin-bottom: 4rem;
+		text-align: center;
+	}
+
+	.back-link {
+		color: var(--accent);
+		text-decoration: none;
+		display: block;
+		margin-bottom: 2rem;
+	}
+
+	h1 {
+		font-size: 3rem;
+		margin-bottom: 1rem;
+		color: var(--accent);
+	}
+
+	.rules-content {
+		line-height: 1.8;
+		color: #ddd;
+	}
+
+	section {
+		margin-bottom: 3rem;
+	}
+
+	h2 {
+		color: var(--accent);
+		margin-bottom: 1.5rem;
+		border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+		padding-bottom: 0.5rem;
+	}
+
+	.rules-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 2rem;
+		margin-top: 2rem;
+	}
+
+	.rule-box {
+		background: rgba(255,255,255,0.05);
+		padding: 1.5rem;
+		border-radius: 12px;
+	}
+
+	h3 {
+		color: white;
+		margin-bottom: 1rem;
+	}
+
+	ul {
+		padding-left: 1.2rem;
+	}
+
+	li {
+		margin-bottom: 0.5rem;
+	}
+</style>
