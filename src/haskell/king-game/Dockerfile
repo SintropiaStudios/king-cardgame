@@ -5,8 +5,14 @@ FROM haskell:9.4 AS builder
 
 WORKDIR /opt/build
 
+# Rewire the package manager to point to the permanent Debian Buster archives
+# This completely bypasses the 404 Not Found errors.
+RUN echo "deb http://archive.debian.org/debian buster main" > /etc/apt/sources.list && \
+    echo "deb http://archive.debian.org/debian-security buster/updates main" >> /etc/apt/sources.list
+
 # Install the system-level C libraries required by ZeroMQ
-RUN apt-get update && apt-get install -y \
+# (We bypass the valid-until check because the archive dates are frozen)
+RUN apt-get update -o Acquire::Check-Valid-Until=false && apt-get install -y \
     libzmq3-dev \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
@@ -15,7 +21,6 @@ RUN apt-get update && apt-get install -y \
 COPY . .
 
 # Update cabal and build the executable
-# (We use cabal install to easily extract the binary to a known location)
 RUN cabal update && \
     cabal install exe:ServerMain \
     --installdir=/opt/build/bin \
