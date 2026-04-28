@@ -24,7 +24,7 @@ RUN cabal update && \
 # ==========================================
 # Stage 2: The Production Runtime
 # ==========================================
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
