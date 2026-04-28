@@ -1,7 +1,7 @@
 # ==========================================
 # Stage 1: The Builder
 # ==========================================
-FROM haskell:9.4-slim AS builder
+FROM haskell:9.4-slim-bullseye AS builder
 
 WORKDIR /opt/build
 
