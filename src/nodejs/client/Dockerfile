@@ -11,6 +11,11 @@ RUN npm ci --only=production
 # Copy the bridge source code
 COPY app.js ./
 
+# Set production defaults (Local dev will still fallback to localhost via app.js)
+ENV ZMQ_REQ_ADDR=tcp://okn-server.sintropiastudios.com:5555
+ENV ZMQ_SUB_ADDR=tcp://okn-server.sintropiastudios.com:5556
+ENV FRONTEND_URL=https://sintropiastudios.github.io
+
 # Expose the port the Express/Socket.io server binds to
 EXPOSE 3000
 
