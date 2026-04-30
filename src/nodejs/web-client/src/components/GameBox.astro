@@ -15,50 +15,88 @@ const t = useTranslations(lang);
        <button id="exit-game" class="exit-btn">← {lang === 'en' ? 'Back' : 'Voltar'}</button>
        <div class="loading-status">{t('game.loading')}</div>
     </div>
+
+    <!-- Lobby View -->
+    <div id="lobby-view" class="view-container">
+        <div class="lobby-card">
+            <header class="lobby-top-bar">
+                <h2>{t('lobby.title')}</h2>
+                <div class="user-auth-status">
+                    <span id="user-display"></span>
+                    <button id="authorize-btn" class="primary-btn">{t('nav.about') === 'Sobre' ? 'Autorizar' : 'Authorize'}</button>
+                </div>
+            </header>
+
+            <div class="lobby-main-content">
+                <div class="table-list-section">
+                    <div class="section-header">
+                        <h3>{t('lobby.tables_found')}</h3>
+                        <div class="header-actions">
+                            <button id="refresh-tables-btn" class="icon-btn">🔄 {t('lobby.refresh')}</button>
+                        </div>
+                    </div>
+                    <div id="tables-container">
+                        <p class="empty-msg">{t('lobby.no_tables')}</p>
+                    </div>
+                </div>
+
+                <div class="lobby-side-actions">
+                    <button id="open-create-modal" class="action-tile-btn">
+                        <span class="icon">➕</span>
+                        <span class="label">{t('lobby.create_table')}</span>
+                    </button>
+                    <button id="show-user-list-btn" class="secondary-btn">{t('lobby.opponents')}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User List Modal -->
+    <div id="user-list-modal" class="modal-overlay hidden-modal">
+        <div class="modal-card">
+            <h4>{t('lobby.opponents')}</h4>
+            <div id="online-users-list"></div>
+            <div class="modal-footer">
+                <button class="close-modal-btn secondary-btn" data-modal="user-list-modal">OK</button>
+            </div>
+        </div>
+    </div>
     
-    <main id="game-container">
-        <div id="infobox">
-            <span id="infocontent"></span>
-        </div>
-
-        <!-- Header -->
-        <div id="header">
-            <button id="console-btn">Console</button>
-            <button id="authorize-btn">Authorize Player</button>
-            <button id="start-btn">Join/Start Match</button>
-            <h2>King Online</h2>
-        </div>
-        
-        <!-- Table's area -->
-        <div id="table" class="playingField">
-            <div id="name1" class="textBox name">Right</div>
-            <div id="score1" class="textBox">&nbsp;</div>
-            <div id="name2" class="textBox name">Top</div>
-            <div id="score2" class="textBox">&nbsp;</div>
-            <div id="name3" class="textBox name">Left</div>
-            <div id="score3" class="textBox">&nbsp;</div>
-            <div id="tableCards" class="cardArea"></div>
-        </div>
-
-        <!-- Main player's area -->
-        <div id="player" class="playingField">
-            <div class="textBox name">Player</div>
-            <div id="score0" class="textBox">&nbsp;</div>
-            <div id="playerCards" class="cardArea"></div>
-        </div>
-
-        <div id="command-panel">
-            <ul id="messages"></ul>
-            <form id="command-form">
-                <input id="m" autocomplete="off" placeholder="Enter raw command..." />
-                <button>Send</button>
-            </form>
-        </div>
-    </main>
+    <!-- Game View -->
+    <div id="game-view" class="view-container hidden">
+        <main id="game-container">
+            <div id="infobox"><span id="infocontent"></span></div>
+            <div id="header">
+                <button id="console-btn">Console</button>
+                <button id="return-lobby-btn">Lobby</button>
+                <h2 id="current-table-title">King Online</h2>
+            </div>
+            <div id="table" class="playingField">
+                <div id="name1" class="textBox name">Right</div>
+                <div id="score1" class="textBox">&nbsp;</div>
+                <div id="name2" class="textBox name">Top</div>
+                <div id="score2" class="textBox">&nbsp;</div>
+                <div id="name3" class="textBox name">Left</div>
+                <div id="score3" class="textBox">&nbsp;</div>
+                <div id="tableCards" class="cardArea"></div>
+            </div>
+            <div id="player" class="playingField">
+                <div class="textBox name">Player</div>
+                <div id="score0" class="textBox">&nbsp;</div>
+                <div id="playerCards" class="cardArea"></div>
+            </div>
+            <div id="command-panel">
+                <ul id="messages"></ul>
+                <form id="command-form">
+                    <input id="m" autocomplete="off" placeholder="Raw command..." />
+                    <button>Send</button>
+                </form>
+            </div>
+        </main>
+    </div>
   </div>
 </div>
 
-<!-- Scripts -->
 <script is:inline src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script is:inline src="https://code.jquery.com/jquery-3.1.1.js"></script>
 <script is:inline src="/king-cardgame/jquery.keyframes.js"></script>
@@ -66,96 +104,186 @@ const t = useTranslations(lang);
 <script is:inline src="/king-cardgame/king.js"></script>
 
 <script>
-    // Connect to the standalone Node.js Proxy on port 3000
-    // @ts-ignore
-    var socket = io('http://localhost:3000'); 
-    var cur_game = null;
+    console.log("GameBox Arena Initializing...");
 
-    socket.on('response', function(data) {
-        $('#messages').append($('<li>').text('RESPONSE: ' + data));
-    });
-
-    socket.on('info', function(msg) {
-        $('#messages').append($('<li>').text('INFO: ' + msg).addClass('info'));
-    });
-
-    $('#command-form').submit(function(e){
-        e.preventDefault();
-        socket.emit('action', $('#m').val());
-        $('#m').val('');
-        return false;
-    });
-
-    $('#console-btn').on('click', function(evt) {
-        var elem = $('#command-panel');
-        elem.toggleClass('visible');
-    });
-
-    $('#authorize-btn').on('click', function(evt){
-        if (cur_game === null) {
-            var name = prompt('Enter name:');
-            var password = prompt('Password:');
-            cur_game = new Game(name);
-            authorize(cur_game, password)
+    // Define missing card keyframes
+    function defineCardKeyframes() {
+        if (!window.jQuery || !window.jQuery.keyframe) {
+            setTimeout(defineCardKeyframes, 100);
+            return;
         }
-    });
-
-    $('#start-btn').on('click', function(evt){
-        if (cur_game !== null && cur_game.channel) {
-            hunt_table(cur_game);
-        }
-    });
-
-    // Initialize Animations
-    function initGameAnimations() {
-        var table = $('#tableCards');
-        var tempCard = $((new Card('2','C')).createNode()).css('visibility','hidden').appendTo(table);
-        var middleTable = { 
-            x: table.innerWidth() / 2 - tempCard.width() / 2,
-            y: table.innerHeight() / 2 - tempCard.height() / 2
-        };
-
-        $.keyframe.define([{
-            name: `tableCard${PlayerPosition.BOTTOM}`,
-            from: { transform: `translate(${middleTable.x}px, ${table.innerHeight() + 100}px)` },
-            to: { transform: `translate(${middleTable.x}px, ${middleTable.y + 50}px)` }
-        }, {
-            name: `tableCard${PlayerPosition.RIGHT}`,
-            from: { transform: `translate(${table.innerWidth() + 100}px, ${middleTable.y}px)` },
-            to: { transform: `translate(${middleTable.x + 50}px, ${middleTable.y}px)` }
-        }, {
-            name: `tableCard${PlayerPosition.TOP}`,
-            from: { transform: `translate(${middleTable.x}px, -100px)` },
-            to: { transform: `translate(${middleTable.x}px, ${middleTable.y - 50}px)` }
-        }, {
-            name: `tableCard${PlayerPosition.LEFT}`,
-            from: { transform: `translate(-100px, ${middleTable.y}px)` },
-            to: { transform: `translate(${middleTable.x - 50}px, ${middleTable.y}px)` }
-        }]);
-
-        var hand = $('#playerCards');
-        var middle = hand.innerWidth() / 2;
-        for (var i=0; i<13; i++) {
+        
+        const $ = window.jQuery;
+        
+        // Hand cards (0 to 12)
+        for (let i = 0; i < 13; i++) {
             $.keyframe.define([{
                 name: `handCard${i}`,
-                from: { transform: `translateX(${middle}px)` },
-                to: { transform: `translateX(${2*i}em)` }
-            }, {
-                name: 'playHandCard',
-                from: { transform: `translate(${2*i}em, 0em)`, opacity: 1, visibility: 'visible' },
-                to: { transform: `translate(${middle}px, -10em)`, opacity: 0, visibility: 'hidden' }
+                '0%': { left: '0px', top: '0px' },
+                '100%': { left: (i * 45) + 'px', top: '0px' }
             }]);
+        }
+
+        // Table cards (0 to 3)
+        const tablePositions = [
+            { name: 'tableCard0', '0%': { left: '400px', top: '300px' }, '100%': { left: '400px', top: '200px' } },
+            { name: 'tableCard1', '0%': { left: '400px', top: '300px' }, '100%': { left: '500px', top: '100px' } },
+            { name: 'tableCard2', '0%': { left: '400px', top: '300px' }, '100%': { left: '400px', top: '50px' } },
+            { name: 'tableCard3', '0%': { left: '400px', top: '300px' }, '100%': { left: '300px', top: '100px' } }
+        ];
+        
+        tablePositions.forEach(pos => $.keyframe.define([pos]));
+        console.log("Card keyframes defined.");
+    }
+    
+    defineCardKeyframes();
+    
+    const PROXY_URL = import.meta.env.PUBLIC_PROXY_URL || 'http://localhost:3000';
+    console.log("Connecting to Proxy at:", PROXY_URL);
+
+    // @ts-ignore
+    window.socket = io(PROXY_URL);
+    const socket = window.socket;
+    let cur_game = null;
+    let isAuthorized = false;
+
+    // Patch king.js Choice Box
+    // @ts-ignore
+    if (window.Game) {
+        // @ts-ignore
+        window.Game.prototype.createChoiceBox = function(title, body, choices, action) {
+            const e = $("<div id='choiceArea'></div>").appendTo($('#game-arena'))
+                    .append(`<h2>${title}</h2>`)
+                    .append(`<p>${body}</p>`)
+                    .append('<br />');
+            for (let i=0; i < choices.length; i++) {
+                e.append($('<button></button>').text(TranslateChoices[choices[i]]).on('click', ((game, choice) => {
+                    return (evt) => { game.sendAction(action, choice, (msg) => { $('#choiceArea').remove(); }); };
+                })(this, choices[i])));
+            }
+            e.addClass('active').css('z-index', '200');
         }
     }
 
-    // Toggle Visibility
+    const lang = document.documentElement.lang;
+    const labels = {
+        'pt-br': { auth_needed: 'Por favor, autorize-se primeiro.', join: 'Entrar' },
+        'en': { auth_needed: 'Please authorize first.', join: 'Join' }
+    }[lang] || { auth_needed: 'Please authorize first.', join: 'Join' };
+
+    function refreshTableList() {
+        socket.once('response', (msg) => {
+            const container = document.getElementById('tables-container');
+            if (!container) return;
+            try {
+                const tables = JSON.parse(msg);
+                if (tables.length === 0) {
+                    container.innerHTML = `<p class="empty-msg">No tables found.</p>`;
+                    return;
+                }
+                container.innerHTML = tables.map(t => `
+                    <div class="table-item">
+                        <span class="table-name">${t.name}</span>
+                        <span class="table-players">${t.players.length}/4</span>
+                        <button class="join-btn" data-name="${t.name}">${labels.join}</button>
+                    </div>
+                `).join('');
+                document.querySelectorAll('.join-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => { joinTable(e.target.dataset.name); });
+                });
+            } catch (e) {}
+        });
+        socket.emit('action', 'LIST');
+    }
+
+    function joinTable(tableName) {
+        if (!isAuthorized) { show_message(labels.auth_needed); return; }
+        cur_game.secret = cur_game.channel;
+        cur_game.sendAction('JOIN', tableName, (msg) => {
+            if (!msg.startsWith('ERROR')) {
+                cur_game.secret = msg;
+                document.getElementById('lobby-view').classList.add('hidden');
+                document.getElementById('game-view').classList.remove('hidden');
+                document.getElementById('current-table-title').textContent = `Mesa: ${tableName}`;
+            } else { show_message("Error: " + msg); }
+        });
+    }
+
+    function fetchUserList() {
+        const container = document.getElementById('online-users-list');
+        if (container) container.innerHTML = `<p class="loading-msg">${lang === 'en' ? 'Fetching...' : 'Buscando...'}</p>`;
+        socket.emit('action', 'LISTUSERS');
+    }
+
+    socket.on('info', (message) => {
+        if (message.startsWith('user-list-channel')) {
+            const users = message.split(' ').slice(1);
+            const container = document.getElementById('online-users-list');
+            if (!container) return;
+            if (users.length <= 1) { container.innerHTML = `<p class="empty-msg">No other users online.</p>`; return; }
+            container.innerHTML = users.filter(u => u !== cur_game?.user && u !== "").map(u => `
+                <div class="user-item"><label><input type="checkbox" class="user-checkbox" value="${u}" /> ${u}</label></div>
+            `).join('');
+        }
+    });
+
+    document.getElementById('refresh-tables-btn')?.addEventListener('click', refreshTableList);
+    document.getElementById('open-create-modal')?.addEventListener('click', () => {
+        if (!isAuthorized) { alert(labels.auth_needed); return; }
+        // Skip naming, let server generate UUID
+        cur_game.sendAction('TABLE', '', (msg) => {
+            console.log("TABLE create response:", msg);
+            refreshTableList();
+            // JOIN expects the table name/ID. The response 'msg' is the new UUID from Haskell server.
+            setTimeout(() => joinTable(msg), 500);
+        });
+    });
+    document.getElementById('show-user-list-btn')?.addEventListener('click', () => {
+        if (!isAuthorized) { alert(labels.auth_needed); return; }
+        document.getElementById('user-list-modal').classList.remove('hidden-modal');
+        fetchUserList();
+    });
+
+    document.querySelectorAll('.close-modal-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.getElementById(e.target.dataset.modal).classList.add('hidden-modal');
+        });
+    });
+
+    document.getElementById('authorize-btn')?.addEventListener('click', () => {
+        const name = prompt('Name:');
+        const pass = prompt('Password:');
+        if (name && pass) {
+            // @ts-ignore
+            cur_game = new Game(name);
+            // @ts-ignore
+            authorize(cur_game, pass);
+            socket.once('response', (msg) => {
+                if (!msg.startsWith('ERROR')) {
+                    isAuthorized = true;
+                    cur_game.channel = msg;
+                    cur_game.secret = msg;
+                    document.getElementById('user-display').textContent = `👤 ${name}`;
+                    document.getElementById('authorize-btn').style.display = 'none';
+                    refreshTableList();
+                }
+            });
+        }
+    });
+
+    document.getElementById('return-lobby-btn')?.addEventListener('click', () => {
+        document.getElementById('game-view').classList.add('hidden');
+        document.getElementById('lobby-view').classList.remove('hidden');
+        refreshTableList();
+    });
+
     document.getElementById('play-button')?.addEventListener('click', () => {
         document.getElementById('landing-hero').classList.add('fade-out');
         setTimeout(() => {
             document.getElementById('landing-hero').style.display = 'none';
             document.getElementById('game-arena').classList.remove('hidden');
             document.getElementById('game-arena').classList.add('fade-in');
-            initGameAnimations();
+            refreshTableList();
         }, 500);
     });
 
@@ -173,77 +301,182 @@ const t = useTranslations(lang);
 <style>
   #game-arena {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #002200; /* Dark felt green */
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    overflow: auto;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #13151a; z-index: 100;
+    display: flex; flex-direction: column; overflow: hidden;
   }
 
   .hidden { display: none !important; }
 
   .arena-overlay {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 1rem;
-    max-width: 1400px;
-    margin: 0 auto;
-    width: 100%;
+    flex: 1; display: flex; flex-direction: column;
+    padding: 1rem; max-width: 1200px; margin: 0 auto; width: 100%;
   }
 
   .arena-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;
+  }
+
+  .view-container {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 2rem 1rem; width: 100%; overflow-y: auto;
+  }
+
+  /* Lobby Card */
+  .lobby-card {
+    background: rgba(30, 35, 45, 0.7); backdrop-filter: blur(15px);
+    border-radius: 24px; padding: 2.5rem; border: 1px solid rgba(212, 175, 55, 0.2);
+    width: 100%; max-width: 900px; box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+  }
+
+  .lobby-top-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    margin-bottom: 1rem;
-  }
-
-  .exit-btn {
-    background: rgba(255,255,255,0.1);
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-
-  .loading-status {
-    color: var(--accent);
-    font-size: 0.9rem;
-    font-weight: bold;
-  }
-
-  #game-container {
-    background: #004d00;
-    border-radius: 20px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-    border: 8px solid #332211; /* Wooden frame effect */
-    margin: auto;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding-bottom: 1.5rem;
     width: 100%;
   }
 
-  /* Animations */
-  .fade-out {
-    animation: fadeOut 0.5s forwards;
-  }
-  .fade-in {
-    animation: fadeIn 0.5s forwards;
+  .lobby-top-bar h2 {
+    margin: 0;
+    white-space: nowrap;
+    z-index: 1;
   }
 
-  @keyframes fadeOut {
-    from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(0.95); }
+  .user-auth-status { 
+    display: flex; 
+    align-items: center; 
+    gap: 1.5rem; 
+    justify-content: flex-end;
+    z-index: 2;
+    flex-shrink: 0;
   }
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: scale(1.05); }
-    to { opacity: 1; transform: scale(1); }
+  #authorize-btn {
+    position: static !important; /* Override legacy king.css absolute positioning */
+  }
+  #user-display { font-weight: bold; color: var(--accent); }
+
+  .lobby-main-content { display: grid; grid-template-columns: 1fr 280px; gap: 2.5rem; }
+
+  .table-list-section {
+    background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 16px;
+    min-height: 400px; display: flex; flex-direction: column;
+  }
+
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+
+  #tables-container { flex: 1; overflow-y: auto; }
+
+  .table-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 12px; margin-bottom: 0.5rem;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .lobby-side-actions { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  .action-tile-btn {
+    background: rgba(212, 175, 55, 0.1); border: 2px dashed rgba(212, 175, 55, 0.3);
+    border-radius: 16px; padding: 2rem; color: white; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 1rem;
+    transition: all 0.2s;
+  }
+
+  .action-tile-btn:hover { background: rgba(212, 175, 55, 0.2); border-color: var(--accent); }
+  .action-tile-btn .icon { font-size: 2rem; }
+  .action-tile-btn .label { font-weight: bold; font-size: 1.1rem; }
+
+  /* Modals */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+    z-index: 500; display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s;
+  }
+
+  .hidden-modal { opacity: 0; pointer-events: none; visibility: hidden; }
+
+  .modal-card {
+    background: #1e232d; padding: 2.5rem; border-radius: 24px;
+    border: 1px solid var(--accent); width: 100%; max-width: 450px;
+    box-shadow: 0 20px 80px rgba(0,0,0,1);
+  }
+
+  .modal-card h3, .modal-card h4 { margin-top: 0; color: var(--accent); margin-bottom: 1.5rem; }
+
+  .lobby-form { display: flex; flex-direction: column; gap: 1.5rem; }
+  .lobby-form input {
+    background: #000; border: 1px solid #333; padding: 1rem;
+    color: white; border-radius: 10px; font-size: 1rem;
+  }
+
+  .modal-footer { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem; }
+
+  #online-users-list { max-height: 300px; overflow-y: auto; margin-bottom: 1rem; }
+  .user-item { padding: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .user-item label { display: flex; align-items: center; gap: 1rem; cursor: pointer; }
+
+  /* Buttons */
+  .primary-btn {
+    background: var(--accent); color: black; padding: 0.8rem 1.5rem;
+    border-radius: 10px; border: none; font-weight: bold; cursor: pointer;
+  }
+
+  .secondary-btn {
+    background: rgba(255,255,255,0.1); color: white; padding: 0.8rem 1.5rem;
+    border-radius: 10px; border: none; font-weight: 600; cursor: pointer;
+  }
+
+  .icon-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-weight: bold; }
+
+  /* Game UI Fixes */
+  #infobox, #choiceArea {
+    background: rgba(30, 35, 45, 0.9) !important;
+    backdrop-filter: blur(10px);
+    border: 2px solid var(--accent) !important;
+    border-radius: 20px;
+    color: white !important;
+    box-shadow: 0 20px 80px rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    height: auto !important;
+    min-height: 10em;
+  }
+
+  #infocontent {
+    color: white !important;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  #choiceArea h2 { color: var(--accent); margin-bottom: 1rem; }
+  #choiceArea button {
+    background: var(--accent);
+    color: black;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-weight: bold;
+    margin: 0.5rem;
+    cursor: pointer;
+  }
+
+  #game-container {
+    background: #004d00; border-radius: 20px; border: 8px solid #332211;
+    width: 100%; max-width: 1100px; position: relative;
+  }
+
+  .exit-btn { background: rgba(255,255,255,0.1); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+
+  @media (max-width: 850px) {
+    .lobby-main-content { grid-template-columns: 1fr; }
+    .lobby-card { padding: 1.5rem; }
   }
 </style>

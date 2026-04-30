@@ -63,6 +63,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("action", async (data) => {
+        console.log(`[Proxy] Received action from ${socket.id}: ${data}`);
         const args = data.split(" ");
         const command = args[0];
 
