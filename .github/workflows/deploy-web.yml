@@ -54,7 +54,7 @@ jobs:
           # Injects the correct Base URL depending on your GitHub repository name
           SITE: ${{ steps.pages.outputs.origin }}
           BASE: ${{ steps.pages.outputs.base_path }}
-          PUBLIC_PROXY_URL: "https://okn-bridge.sintropiastudios.com:3000"
+          PUBLIC_PROXY_URL: "https://okn-bridge.sintropiastudios.com"
 
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
