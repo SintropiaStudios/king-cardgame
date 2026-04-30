@@ -24,7 +24,7 @@ main = do
     -- Fork the dedicated ZMQ Publisher Thread
     forkIO $ Z.runZMQ $ do
         statusPublisher <- Z.socket Z.Pub
-        Z.bind statusPublisher "tcp://127.0.0.1:5556"
+        Z.bind statusPublisher "tcp://*:5556"
         forever $ do
             msg <- liftIO $ readChan bcastChan
             liftIO $ putStrLn $ "Broadcasting: " ++ msg
@@ -33,7 +33,7 @@ main = do
     -- Run the Main ZMQ Action (REP) Thread
     Z.runZMQ $ do        
         actionServer <- Z.socket Z.Rep
-        Z.bind actionServer "tcp://127.0.0.1:5555"        
+        Z.bind actionServer "tcp://*:5555"        
         liftIO $ putStrLn "ZMQ Sockets Bound. Listening for commands..."
         
         -- The Main Game Loop
