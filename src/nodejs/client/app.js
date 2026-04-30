@@ -5,16 +5,17 @@ const { Server } = require("socket.io");
 /**
  * Backend Proxy Configuration
  */
-const PORT = 3000; // Standalone API port
-const FRONTEND_URL = "http://localhost:4321"; // Default Astro port
-const ZMQ_REQ_ADDR = "tcp://127.0.0.1:5555";
-const ZMQ_SUB_ADDR = "tcp://127.0.0.1:5556";
+const PORT = process.env.PORT || 3000;
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:4321";
+const ZMQ_REQ_ADDR = process.env.ZMQ_REQ_ADDR || "tcp://127.0.0.1:5555";
+const ZMQ_SUB_ADDR = process.env.ZMQ_SUB_ADDR || "tcp://127.0.0.1:5556";
 
 const server = http.createServer();
 const io = new Server(server, {
     cors: {
-        origin: FRONTEND_URL,
-        methods: ["GET", "POST"]
+        origin: [FRONTEND_URL, "https://raffaine.github.io", "https://sintropiastudios.github.io"],
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
 

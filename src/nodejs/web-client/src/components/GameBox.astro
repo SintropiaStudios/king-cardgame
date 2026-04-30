@@ -142,8 +142,24 @@ const t = useTranslations(lang);
     console.log("Connecting to Proxy at:", PROXY_URL);
 
     // @ts-ignore
-    window.socket = io(PROXY_URL);
+    window.socket = io(PROXY_URL, {
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 5,
+        timeout: 10000
+    });
     const socket = window.socket;
+
+    socket.on('connect', () => {
+        console.log("Connected to bridge successfully! ID:", socket.id);
+    });
+
+    socket.on('connect_error', (err) => {
+        console.error("Socket connection error:", err.message);
+        if (err.message === "xhr poll error") {
+            console.warn("Falling back to polling or bridge unreachable. Check CORS/SSL.");
+        }
+    });
+
     let cur_game = null;
     let isAuthorized = false;
 
