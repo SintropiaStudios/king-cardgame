@@ -17,7 +17,7 @@ const base = lang === 'en' ? '/king-cardgame/en' : '/king-cardgame';
     <p class="subtitle">{t('hero.subtitle')}</p>
     
     <div class="cta-group">
-      <button id="play-button" class="primary-btn">{t('hero.play')}</button>
+      <a href={`${base}/play`} id="play-button" class="primary-btn" style="text-decoration: none;">{t('hero.play')}</a>
       <a href={lang === 'en' ? '/king-cardgame/' : '/king-cardgame/en/'} class="secondary-btn">
         {lang === 'en' ? 'Português' : 'English'}
       </a>

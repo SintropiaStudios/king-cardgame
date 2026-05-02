@@ -9,10 +9,10 @@ const { lang } = Astro.props;
 const t = useTranslations(lang);
 ---
 
-<div id="game-arena" class="hidden">
+<div id="game-arena">
   <div class="arena-overlay">
     <div class="arena-header">
-       <button id="exit-game" class="exit-btn">← {lang === 'en' ? 'Back' : 'Voltar'}</button>
+       <a href={lang === 'en' ? '/king-cardgame/en' : '/king-cardgame'} id="exit-game" class="exit-btn" style="text-decoration: none;">← {lang === 'en' ? 'Back' : 'Voltar'}</a>
        <div class="loading-status">{t('game.loading')}</div>
     </div>
 
@@ -125,11 +125,12 @@ const t = useTranslations(lang);
         }
 
         // Table cards (0 to 3)
+        // 0: Bottom, 1: Right, 2: Top, 3: Left
         const tablePositions = [
-            { name: 'tableCard0', '0%': { left: '400px', top: '300px' }, '100%': { left: '400px', top: '200px' } },
-            { name: 'tableCard1', '0%': { left: '400px', top: '300px' }, '100%': { left: '500px', top: '100px' } },
-            { name: 'tableCard2', '0%': { left: '400px', top: '300px' }, '100%': { left: '400px', top: '50px' } },
-            { name: 'tableCard3', '0%': { left: '400px', top: '300px' }, '100%': { left: '300px', top: '100px' } }
+            { name: 'tableCard0', '0%': { left: '50%', top: '100%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '50%', top: '70%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } },
+            { name: 'tableCard1', '0%': { left: '100%', top: '50%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '70%', top: '50%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } },
+            { name: 'tableCard2', '0%': { left: '50%', top: '0%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '50%', top: '30%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } },
+            { name: 'tableCard3', '0%': { left: '0%', top: '50%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '30%', top: '50%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } }
         ];
         
         tablePositions.forEach(pos => $.keyframe.define([pos]));
@@ -178,17 +179,18 @@ const t = useTranslations(lang);
 
             const e = $("<div id='choiceArea'></div>").appendTo($('body'))
                     .append(`<h2>${title}</h2>`)
-                    .append(`<p>${body}</p>`)
-                    .append('<br />');
+                    .append(`<p>${body}</p>`);
+            
+            const btnContainer = $("<div class='choice-buttons-container'></div>").appendTo(e);
 
             for (let i=0; i < choices.length; i++) {
                 const choiceKey = choices[i];
+                // @ts-ignore
                 const label = TranslateChoices[choiceKey] || choiceKey;
 
                 $('<button></button>')
                     .text(label)
                     .addClass('primary-btn')
-                    .css('margin', '0.5rem')
                     .on('click', ((game, choice) => {
                         return (evt) => { 
                             game.sendAction(action, choice, (msg) => { 
@@ -197,7 +199,7 @@ const t = useTranslations(lang);
                             }); 
                         };
                     })(this, choiceKey))
-                    .appendTo(e);
+                    .appendTo(btnContainer);
             }
             e.addClass('active');
             console.log("Choice Box Created for:", action, choices);
@@ -230,7 +232,7 @@ const t = useTranslations(lang);
                     </div>
                 `).join('');
                 document.querySelectorAll('.join-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => { joinTable(e.target.dataset.name); });
+                    btn.addEventListener('click', (e) => { joinTable((e.target as HTMLElement).dataset.name); });
                 });
             } catch (e) {}
         });
@@ -238,7 +240,7 @@ const t = useTranslations(lang);
     }
 
     function joinTable(tableName) {
-        if (!isAuthorized) { show_message(labels.auth_needed); return; }
+        if (!isAuthorized) { alert(labels.auth_needed); return; }
         cur_game.secret = cur_game.channel;
         cur_game.sendAction('JOIN', tableName, (msg) => {
             if (!msg.startsWith('ERROR')) {
@@ -289,7 +291,7 @@ const t = useTranslations(lang);
 
     document.querySelectorAll('.close-modal-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            document.getElementById(e.target.dataset.modal).classList.add('hidden-modal');
+            document.getElementById((e.target as HTMLElement).dataset.modal).classList.add('hidden-modal');
         });
     });
 
@@ -353,33 +355,108 @@ const t = useTranslations(lang);
         refreshTableList();
     });
 
-    document.getElementById('play-button')?.addEventListener('click', () => {
-        document.getElementById('landing-hero').classList.add('fade-out');
-        setTimeout(() => {
-            document.getElementById('landing-hero').style.display = 'none';
-            document.getElementById('game-arena').classList.remove('hidden');
-            document.getElementById('game-arena').classList.add('fade-in');
-            refreshTableList();
-        }, 500);
-    });
-
-    document.getElementById('exit-game')?.addEventListener('click', () => {
-        document.getElementById('game-arena').classList.add('fade-out');
-        setTimeout(() => {
-            document.getElementById('game-arena').style.display = 'none';
-            document.getElementById('landing-hero').style.display = 'flex';
-            document.getElementById('landing-hero').classList.remove('fade-out');
-            document.getElementById('landing-hero').classList.add('fade-in');
-        }, 500);
-    });
+    // Auto-refresh tables on load since we are on the play page
+    setTimeout(refreshTableList, 500);
 </script>
 
+<style is:global>
+  /* Global UI Overlays (Info & Choices) */
+  #infobox, #choiceArea {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    margin: 0 !important;
+    z-index: 10000 !important;
+    width: 90%;
+    max-width: 600px;
+    background: #1e232d !important;
+    border: 4px solid #d4af37 !important;
+    border-radius: 32px;
+    color: white !important;
+    box-shadow: 0 60px 150px rgba(0,0,0,0.95);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3.5rem;
+    pointer-events: all;
+  }
+
+  #infobox.animated, #choiceArea.active {
+    display: flex !important;
+  }
+
+  #choiceArea h2 { color: #d4af37 !important; margin-bottom: 1rem; text-align: center; }
+  #choiceArea p { color: white !important; margin-bottom: 2rem; text-align: center; }
+  
+  .choice-buttons-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    width: 100%;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
+
+  /* Custom scrollbar for container */
+  .choice-buttons-container::-webkit-scrollbar {
+    width: 6px;
+  }
+  .choice-buttons-container::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+  }
+  .choice-buttons-container::-webkit-scrollbar-thumb {
+    background: #d4af37;
+    border-radius: 3px;
+  }
+
+  #choiceArea button {
+    background: #d4af37 !important;
+    color: black !important;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    flex: 0 1 auto;
+    transition: transform 0.2s, filter 0.2s;
+  }
+
+  #choiceArea button:hover {
+    transform: scale(1.05);
+    filter: brightness(1.1);
+  }
+
+  #infocontent {
+    color: white !important;
+    text-align: center;
+    font-weight: 600;
+  }
+</style>
+
 <style>
+  /* Game Area container */
   #game-arena {
     position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: #13151a; z-index: 100;
-    display: flex; flex-direction: column; overflow: hidden;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex !important;
+    flex-direction: column;
+    background: #13151a;
+    z-index: 10;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .game-view {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    position: relative;
   }
 
   .hidden { display: none !important; }
@@ -397,6 +474,7 @@ const t = useTranslations(lang);
   .view-container {
     flex: 1; display: flex; align-items: center; justify-content: center;
     padding: 2rem 1rem; width: 100%; overflow-y: auto;
+    background: radial-gradient(circle at center, #1a1e26 0%, #13151a 100%);
   }
 
   /* Lobby Card */
@@ -432,7 +510,7 @@ const t = useTranslations(lang);
   }
 
   #authorize-btn {
-    position: static !important; /* Override legacy king.css absolute positioning */
+    position: static !important;
   }
   #user-display { font-weight: bold; color: var(--accent); }
 
@@ -560,63 +638,51 @@ const t = useTranslations(lang);
     border-radius: 4px;
   }
 
-  /* Global UI Overlays (Info & Choices) */
-  #infobox, #choiceArea {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 9999; /* Ensure it's above EVERYTHING */
-    width: 90%;
-    max-width: 500px;
-    background: rgba(25, 30, 40, 0.98) !important;
-    backdrop-filter: blur(15px);
-    border: 3px solid var(--accent) !important;
-    border-radius: 28px;
-    color: white !important;
-    box-shadow: 0 50px 120px rgba(0,0,0,0.9);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem;
-    min-height: 14em;
-    pointer-events: all;
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  }
-
-  #infobox.animated, #choiceArea.active {
-    visibility: visible;
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-
-  #infobox:not(.animated) { transform: translate(-50%, -50%) scale(0.9); }
-  #choiceArea:not(.active) { transform: translate(-50%, -50%) scale(0.9); }
-
-  #infocontent {
-    color: white !important;
-    text-align: center;
-    font-weight: 600;
-  }
-
-  #choiceArea h2 { color: var(--accent); margin-bottom: 1rem; }
-  #choiceArea button {
-    background: var(--accent);
-    color: black;
-    border: none;
-    padding: 0.8rem 1.5rem;
-    border-radius: 8px;
-    font-weight: bold;
-    margin: 0.5rem;
-    cursor: pointer;
-  }
-
+  /* Game Board and Elements */
   #game-container {
-    background: #004d00; border-radius: 20px; border: 8px solid #332211;
-    width: 100%; max-width: 1100px; position: relative;
+    background: #004d00; 
+    border-radius: 30px; 
+    border: 12px solid #332211;
+    width: 95%; 
+    max-width: 1400px; 
+    min-height: 800px;
+    position: relative;
+    box-shadow: 0 0 100px rgba(0,0,0,0.8);
+  }
+
+  .playingField {
+    height: auto !important;
+    overflow: hidden;
+    padding: 1rem !important;
+  }
+
+  .playingField .textBox {
+    float: right !important;
+    display: block;
+    margin-left: 1rem;
+    vertical-align: middle;
+    position: relative;
+    z-index: 100;
+  }
+
+  #table {
+      height: 450px !important;
+  }
+
+  #table .cardArea {
+      height: 15em !important;
+      width: 100%;
+  }
+
+  #player {
+      height: 250px !important;
+  }
+
+  #player .cardArea {
+      height: 8em !important;
+      width: 100%;
+      display: flex;
+      justify-content: center;
   }
 
   .exit-btn { background: rgba(255,255,255,0.1); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }

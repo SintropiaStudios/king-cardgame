@@ -135,30 +135,29 @@ function Game(user) {
         var msg = TranslateMessage['new_hand'];
         this.createChoiceBox( msg[0], msg[1], choices, 'GAME');
     };
-    }
 
     // Helper function used to generate option UI to the user
-    Game.prototype.createChoiceBox = function(title, body, choices, action) {
-    var e = $("<div id='choiceArea'></div>").appendTo($('body'))
-            .append(`<h2>${title}</h2>`)
-            .append(`<p>${body}</p>`)
-            .append('<br />');
+    this.createChoiceBox = function(title, body, choices, action) {
+        var e = $("<div id='choiceArea'></div>").appendTo($('body'))
+                .append(`<h2>${title}</h2>`)
+                .append(`<p>${body}</p>`)
+                .append('<br />');
 
-    for (var i=0; i < choices.length; i++) {
-        e.append(
-            $('<button></button>')
-            .text(TranslateChoices[choices[i]])
-            .on('click', function(game, choice){
-                return function(evt) {
-                    game.sendAction(action, choice, function(msg) {
-                        console.log(`${action} with ${choice} selected, answer: ${msg}`);
-                        $('#choiceArea').remove();
-                    });
-                };
-            }(this, choices[i])));
-    }
+        for (var i=0; i < choices.length; i++) {
+            e.append(
+                $('<button></button>')
+                .text(TranslateChoices[choices[i]])
+                .on('click', function(game, choice){
+                    return function(evt) {
+                        game.sendAction(action, choice, function(msg) {
+                            console.log(`${action} with ${choice} selected, answer: ${msg}`);
+                            $('#choiceArea').remove();
+                        });
+                    };
+                }(this, choices[i])));
+        }
 
-    e.addClass('active');
+        e.addClass('active');
     }
 
     // Show user UI so he can select what is his bids
@@ -258,7 +257,8 @@ function Game(user) {
                 } else {
                     game.cur_game = choice[0];
                     game.state = GameStates.RUNNING;
-                    show_message(TranslateMessage['hand_start'](TranslateChoices[choice[0]]));
+                    var ruleLabel = TranslateChoices[choice[0]] || choice[0];
+                    show_message(TranslateMessage['hand_start'](ruleLabel));
                 }
             },
             'TURN': function(game, player) {
@@ -268,8 +268,8 @@ function Game(user) {
                         game.info['TURN'](game, player);
                     }, 1000);
                 } else {
-                    game.turn = player;
-                    if (player[0] == game.user) {
+                    game.turn = player[0];
+                    if (game.turn == game.user) {
                         game.state = GameStates.WAITING_PLAY;
                     } else {
                         game.state = GameStates.RUNNING;

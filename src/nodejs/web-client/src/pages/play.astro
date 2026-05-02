@@ -1,6 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Landing from '../components/Landing.astro';
 import GameBox from '../components/GameBox.astro';
 import { useTranslations } from '../i18n/utils';
 
@@ -8,6 +7,6 @@ const lang = 'pt-br';
 const t = useTranslations(lang);
 ---
 
-<Layout title={t('hero.title')} lang={lang}>
-	<Landing lang={lang} />
+<Layout title="King - Play" lang={lang}>
+    <GameBox lang={lang} />
 </Layout>

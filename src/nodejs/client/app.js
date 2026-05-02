@@ -36,7 +36,13 @@ async function runSubscriptionHandler() {
             const tableId = args[0];
             const content = args.slice(1).join(" ");
             
+            // Forward message to everyone in the table room
             io.to(tableId).emit("info", content);
+
+            // Log critical events for debugging
+            if (content.startsWith("START") || content.startsWith("STARTHAND") || content.startsWith("TURN") || content.startsWith("GAME")) {
+                console.log(`[ZMQ BCAST] Table ${tableId}: ${content}`);
+            }
         }
     } catch (err) {
         console.error(`[ZMQ SUB ERROR] ${err}`);
