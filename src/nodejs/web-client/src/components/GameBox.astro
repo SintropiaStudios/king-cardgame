@@ -156,11 +156,12 @@ const t = useTranslations(lang);
         console.log("Connected to bridge successfully! ID:", socket.id);
     });
 
+    const clientLang = document.documentElement.lang;
+    // @ts-ignore
+    if (window.setLanguage) { window.setLanguage(clientLang); }
+
     socket.on('connect_error', (err) => {
         console.error("Socket connection error:", err.message);
-        if (err.message === "xhr poll error") {
-            console.warn("Falling back to polling or bridge unreachable. Check CORS/SSL.");
-        }
     });
 
     let cur_game = null;
@@ -209,11 +210,10 @@ const t = useTranslations(lang);
 
     patchChoiceBox();
 
-    const lang = document.documentElement.lang;
     const labels = {
         'pt-br': { auth_needed: 'Por favor, autorize-se primeiro.', join: 'Entrar' },
         'en': { auth_needed: 'Please authorize first.', join: 'Join' }
-    }[lang] || { auth_needed: 'Please authorize first.', join: 'Join' };
+    }[clientLang] || { auth_needed: 'Please authorize first.', join: 'Join' };
 
     function refreshTableList() {
         socket.once('response', (msg) => {
@@ -257,7 +257,7 @@ const t = useTranslations(lang);
 
     function fetchUserList() {
         const container = document.getElementById('online-users-list');
-        if (container) container.innerHTML = `<p class="loading-msg">${lang === 'en' ? 'Fetching...' : 'Buscando...'}</p>`;
+        if (container) container.innerHTML = `<p class="loading-msg">${clientLang === 'en' ? 'Fetching...' : 'Buscando...'}</p>`;
         socket.emit('action', 'LISTUSERS');
     }
 

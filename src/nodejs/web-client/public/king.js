@@ -21,7 +21,7 @@ var AllTranslateChoices = {
         'True': 'Sim, aceito.',
         'False': 'Não, eu escolho.'
     },
-    'en-us': {
+    'en': {
         '0': 'Forefeit',
         '1': '1 Trick',
         '2': '2 Tricks',
@@ -54,7 +54,7 @@ var TranslatedMessages = {
         'get_decision' : ["Temos uma oferta final, você aceita?", (max_bidder, max) => `${max_bidder} ofereceu ${max} positivas pela escolha.`],
         'get_trump' : ["Você tem a escolha!", "Escolha um dos naipes como o naipe Trunfo."],
         'game_start' : "Iniciando a Partida",
-        'hand_start' : (choice) => `A regra para a mão será ${choice}`,
+        'hand_start' : (choice, trump) => `A regra para a mão será ${choice}${trump ? ' (' + trump + ')' : ''}`,
         'starter_msg': (starter) => `${starter} vai começar e escolher a regra.`,
         'round_win' : ["Você venceu esta rodada.", (winner) => `${winner} venceu esta rodada.`],
         'authorize' : "Usuário autenticado com sucesso.",
@@ -65,13 +65,13 @@ var TranslatedMessages = {
         'offered': (val) => `ofereceu ${val}.`,
         'player_left': (player) => `${player} saiu da mesa. Partida encerrada.`
     },
-    'en-us' : {
+    'en' : {
         'new_hand' : ["New Hand, what's the game?", "These are the choices, click the one you want to play."],
-        'get_bid' : ["You're the current man on, how much will you give?", "No bids have been placed yet."],
+        'get_bid' : ["You're the current man on, how much will you give?", "No bids have been placed yet.", "What is your bid?"],
         'get_decision' : ["We have a winning bid, do you take it?", (max_bidder, max) => `${max_bidder} offered ${max} tricks for the choice.`],
         'get_trump' : ["You've got the choice!", "Choose one of the suits as the trump suit."],
         'game_start' : "The game has started",
-        'hand_start' : (choice) => `The game for this hand is ${choice}`,
+        'hand_start' : (choice, trump) => `The game for this hand is ${choice}${trump ? ' (' + trump + ')' : ''}`,
         'starter_msg': (starter) => `${starter} will start and choose the rule.`,
         'round_win' : ["You take the round.", (winner) => `${winner} takes the round.`],
         'authorize' : "User is now authorized",
@@ -79,11 +79,21 @@ var TranslatedMessages = {
         'join_fail' : "Failed to Join a Table, possibly due to concurrent player, try again.",
         'you': 'You',
         'passed': 'passed.',
-        'offered': (val) => `offered ${val}.`
+        'offered': (val) => `offered ${val}.`,
+        'player_left': (player) => `${player} left the table. Match over.`
     },
 }
 
 var TranslateMessage = TranslatedMessages['pt-br'];
+
+function setLanguage(lang) {
+    if (AllTranslateChoices[lang]) {
+        TranslateChoices = AllTranslateChoices[lang];
+    }
+    if (TranslatedMessages[lang]) {
+        TranslateMessage = TranslatedMessages[lang];
+    }
+}
 
 var GameStates = {
     NOT_STARTED: "NOT STARTED",
@@ -294,7 +304,8 @@ function Game(user) {
                     game.cur_game = choice[0];
                     game.state = GameStates.RUNNING;
                     var ruleLabel = TranslateChoices[choice[0]] || choice[0];
-                    show_message(TranslateMessage['hand_start'](ruleLabel));
+                    var trumpLabel = choice[1] ? (TranslateChoices[choice[1]] || choice[1]) : null;
+                    show_message(TranslateMessage['hand_start'](ruleLabel, trumpLabel));
                 }
             },
             'TURN': function(game, player) {
