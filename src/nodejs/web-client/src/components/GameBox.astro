@@ -127,10 +127,10 @@ const t = useTranslations(lang);
         // Table cards (0 to 3)
         // 0: Bottom, 1: Right, 2: Top, 3: Left
         const tablePositions = [
-            { name: 'tableCard0', '0%': { left: '50%', top: '100%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '50%', top: '70%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } },
-            { name: 'tableCard1', '0%': { left: '100%', top: '50%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '70%', top: '50%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } },
-            { name: 'tableCard2', '0%': { left: '50%', top: '0%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '50%', top: '30%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } },
-            { name: 'tableCard3', '0%': { left: '0%', top: '50%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '30%', top: '50%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } }
+            { name: 'tableCard0', '0%': { left: '50%', top: '100%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '50%', top: '60%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } },
+            { name: 'tableCard1', '0%': { left: '100%', top: '50%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '58%', top: '50%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } },
+            { name: 'tableCard2', '0%': { left: '50%', top: '0%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '50%', top: '40%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } },
+            { name: 'tableCard3', '0%': { left: '0%', top: '50%', opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, '100%': { left: '42%', top: '50%', opacity: 1, transform: 'translate(-50%, -50%) scale(1)' } }
         ];
         
         tablePositions.forEach(pos => $.keyframe.define([pos]));
@@ -177,11 +177,12 @@ const t = useTranslations(lang);
             // Remove any existing one first
             $('#choiceArea').remove();
 
-            const e = $("<div id='choiceArea'></div>").appendTo($('body'))
-                    .append(`<h2>${title}</h2>`)
-                    .append(`<p>${body}</p>`);
+            const e = $("<div id='choiceArea'></div>").appendTo($('body'));
             
-            const btnContainer = $("<div class='choice-buttons-container'></div>").appendTo(e);
+            $("<div class='choice-header'></div>").appendTo(e).append(`<h2>${title}</h2>`);
+            $("<div class='choice-body'></div>").appendTo(e).append(`<p>${body}</p>`);
+            
+            const btnContainer = $("<div class='choice-actions'></div>").appendTo(e);
 
             for (let i=0; i < choices.length; i++) {
                 const choiceKey = choices[i];
@@ -361,80 +362,143 @@ const t = useTranslations(lang);
 
 <style is:global>
   /* Global UI Overlays (Info & Choices) */
-  #infobox, #choiceArea {
+  #infobox {
     position: fixed !important;
     top: 50% !important;
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
     margin: 0 !important;
     z-index: 10000 !important;
-    width: 90%;
-    max-width: 600px;
+    width: auto !important;
+    height: auto !important;
+    min-width: 320px !important;
     background: #1e232d !important;
     border: 4px solid #d4af37 !important;
-    border-radius: 32px;
+    border-radius: 20px !important;
     color: white !important;
-    box-shadow: 0 60px 150px rgba(0,0,0,0.95);
+    box-shadow: 0 60px 150px rgba(0,0,0,0.95) !important;
     display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3.5rem;
-    pointer-events: all;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 3.5rem !important;
+    pointer-events: all !important;
+    overflow: hidden !important;
+  }
+
+  #choiceArea {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    margin: 0 !important;
+    z-index: 10000 !important;
+    width: 90vw !important;
+    height: auto !important;
+    min-width: 320px !important;
+    max-width: 800px !important;
+    min-height: 200px !important;
+    max-height: 90vh !important;
+    background: #1e232d !important;
+    border: 4px solid #d4af37 !important;
+    border-radius: 20px !important;
+    color: white !important;
+    box-shadow: 0 60px 150px rgba(0,0,0,0.95) !important;
+    display: none;
+    flex-direction: column !important;
+    padding: 0 !important;
+    pointer-events: all !important;
+    overflow: hidden !important;
   }
 
   #infobox.animated, #choiceArea.active {
     display: flex !important;
   }
 
-  #choiceArea h2 { color: #d4af37 !important; margin-bottom: 1rem; text-align: center; }
-  #choiceArea p { color: white !important; margin-bottom: 2rem; text-align: center; }
+  .choice-header {
+    background: rgba(0, 0, 0, 0.2) !important;
+    width: 100% !important;
+    padding: 1.5rem !important;
+    border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+  }
+
+  .choice-header h2 { 
+    color: #d4af37 !important; 
+    margin: 0 !important; 
+    font-size: 1.8rem !important; 
+  }
+
+  .choice-body {
+    width: 100% !important;
+    padding: 1.5rem 2rem !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+  }
+
+  .choice-body p { 
+    color: #ccc !important; 
+    margin: 0 !important; 
+    font-size: 1.1rem !important;
+    line-height: 1.4 !important;
+  }
   
-  .choice-buttons-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1rem;
-    width: 100%;
-    max-height: 50vh;
-    overflow-y: auto;
-    padding: 0.5rem;
+  .choice-actions {
+    display: block !important;
+    text-align: center !important;
+    width: 100% !important;
+    max-height: 40vh !important;
+    overflow-y: auto !important;
+    padding: 1.5rem !important;
+    box-sizing: border-box !important;
   }
 
   /* Custom scrollbar for container */
-  .choice-buttons-container::-webkit-scrollbar {
-    width: 6px;
+  .choice-actions::-webkit-scrollbar {
+    width: 6px !important;
   }
-  .choice-buttons-container::-webkit-scrollbar-track {
-    background: rgba(255,255,255,0.05);
-    border-radius: 3px;
+  .choice-actions::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05) !important;
+    border-radius: 3px !important;
   }
-  .choice-buttons-container::-webkit-scrollbar-thumb {
-    background: #d4af37;
-    border-radius: 3px;
+  .choice-actions::-webkit-scrollbar-thumb {
+    background: #d4af37 !important;
+    border-radius: 3px !important;
   }
 
   #choiceArea button {
+    display: inline-block !important;
     background: #d4af37 !important;
     color: black !important;
-    border: none;
-    padding: 0.8rem 1.5rem;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
-    flex: 0 1 auto;
-    transition: transform 0.2s, filter 0.2s;
+    border: none !important;
+    padding: 1rem !important;
+    border-radius: 8px !important;
+    font-weight: bold !important;
+    cursor: pointer !important;
+    width: 30% !important;
+    min-width: 120px !important;
+    max-width: 220px !important;
+    margin: 1% !important;
+    vertical-align: top !important;
+    transition: transform 0.2s, filter 0.2s !important;
+    box-sizing: border-box !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    hyphens: auto !important;
   }
 
   #choiceArea button:hover {
-    transform: scale(1.05);
-    filter: brightness(1.1);
+    transform: scale(1.05) !important;
+    filter: brightness(1.1) !important;
   }
 
   #infocontent {
     color: white !important;
-    text-align: center;
-    font-weight: 600;
+    text-align: center !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 </style>
 
@@ -644,15 +708,15 @@ const t = useTranslations(lang);
     border-radius: 30px; 
     border: 12px solid #332211;
     width: 95%; 
-    max-width: 1400px; 
-    min-height: 800px;
+    max-width: 1000px; 
+    min-height: 600px;
     position: relative;
     box-shadow: 0 0 100px rgba(0,0,0,0.8);
   }
 
   .playingField {
     height: auto !important;
-    overflow: hidden;
+    overflow: visible !important;
     padding: 1rem !important;
   }
 
@@ -666,23 +730,24 @@ const t = useTranslations(lang);
   }
 
   #table {
-      height: 450px !important;
+      height: 350px !important;
   }
 
   #table .cardArea {
-      height: 15em !important;
+      height: 14em !important; /* give it a bit more room */
       width: 100%;
+      overflow: visible !important;
   }
 
   #player {
-      height: 250px !important;
+      height: auto !important;
   }
 
   #player .cardArea {
-      height: 8em !important;
+      height: 5em !important; /* Revert to legacy king.css height */
       width: 100%;
-      display: flex;
-      justify-content: center;
+      position: relative;
+      overflow: hidden !important; /* Hides bottom halves as intended */
   }
 
   .exit-btn { background: rgba(255,255,255,0.1); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }

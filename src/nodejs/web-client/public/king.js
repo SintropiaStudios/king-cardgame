@@ -138,15 +138,21 @@ function Game(user) {
 
     // Helper function used to generate option UI to the user
     this.createChoiceBox = function(title, body, choices, action) {
-        var e = $("<div id='choiceArea'></div>").appendTo($('body'))
-                .append(`<h2>${title}</h2>`)
-                .append(`<p>${body}</p>`)
-                .append('<br />');
+        $('#choiceArea').remove();
+        var e = $("<div id='choiceArea'></div>").appendTo($('body'));
+        
+        $("<div class='choice-header'></div>").appendTo(e).append(`<h2>${title}</h2>`);
+        $("<div class='choice-body'></div>").appendTo(e).append(`<p>${body}</p>`);
+        
+        var btnContainer = $("<div class='choice-actions'></div>").appendTo(e);
 
         for (var i=0; i < choices.length; i++) {
-            e.append(
-                $('<button></button>')
-                .text(TranslateChoices[choices[i]])
+            var choiceKey = choices[i];
+            var label = TranslateChoices[choiceKey] || choiceKey;
+            
+            $('<button></button>')
+                .text(label)
+                .addClass('primary-btn')
                 .on('click', function(game, choice){
                     return function(evt) {
                         game.sendAction(action, choice, function(msg) {
@@ -154,7 +160,8 @@ function Game(user) {
                             $('#choiceArea').remove();
                         });
                     };
-                }(this, choices[i])));
+                }(this, choiceKey))
+                .appendTo(btnContainer);
         }
 
         e.addClass('active');
@@ -485,6 +492,19 @@ function Hand(game) {
     }
 
     this.setCards = function(cards) {
+        // Sort cards: Suit alphabetical (C, D, H, S), then rank (2..A)
+        var rankOrder = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
+        cards.sort(function(a, b) {
+            var suitA = a.slice(-1);
+            var suitB = b.slice(-1);
+            if (suitA !== suitB) {
+                return suitA.localeCompare(suitB);
+            }
+            var rankA = a.slice(0, -1);
+            var rankB = b.slice(0, -1);
+            return rankOrder[rankA] - rankOrder[rankB];
+        });
+
         this.cards = cards;
         this.emptyHand();
 
