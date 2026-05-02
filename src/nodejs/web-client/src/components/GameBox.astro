@@ -138,7 +138,7 @@ const t = useTranslations(lang);
     
     defineCardKeyframes();
     
-    const PROXY_URL = import.meta.env.PUBLIC_PROXY_URL || 'https://okn-bridge.sintropiastudios.com';
+    const PROXY_URL = import.meta.env.PUBLIC_PROXY_URL || 'http://127.0.0.1:3000';
     console.log("Connecting to Proxy at:", PROXY_URL);
 
     // @ts-ignore
@@ -166,22 +166,45 @@ const t = useTranslations(lang);
     let isAuthorized = false;
 
     // Patch king.js Choice Box
-    // @ts-ignore
-    if (window.Game) {
+    function patchChoiceBox() {
+        if (!window.Game) {
+            setTimeout(patchChoiceBox, 100);
+            return;
+        }
         // @ts-ignore
         window.Game.prototype.createChoiceBox = function(title, body, choices, action) {
-            const e = $("<div id='choiceArea'></div>").appendTo($('#game-arena'))
+            // Remove any existing one first
+            $('#choiceArea').remove();
+
+            const e = $("<div id='choiceArea'></div>").appendTo($('body'))
                     .append(`<h2>${title}</h2>`)
                     .append(`<p>${body}</p>`)
                     .append('<br />');
+
             for (let i=0; i < choices.length; i++) {
-                e.append($('<button></button>').text(TranslateChoices[choices[i]]).on('click', ((game, choice) => {
-                    return (evt) => { game.sendAction(action, choice, (msg) => { $('#choiceArea').remove(); }); };
-                })(this, choices[i])));
+                const choiceKey = choices[i];
+                const label = TranslateChoices[choiceKey] || choiceKey;
+
+                $('<button></button>')
+                    .text(label)
+                    .addClass('primary-btn')
+                    .css('margin', '0.5rem')
+                    .on('click', ((game, choice) => {
+                        return (evt) => { 
+                            game.sendAction(action, choice, (msg) => { 
+                                console.log(`${action} response:`, msg);
+                                $('#choiceArea').remove(); 
+                            }); 
+                        };
+                    })(this, choiceKey))
+                    .appendTo(e);
             }
-            e.addClass('active').css('z-index', '200');
+            e.addClass('active');
+            console.log("Choice Box Created for:", action, choices);
         }
     }
+
+    patchChoiceBox();
 
     const lang = document.documentElement.lang;
     const labels = {
@@ -220,6 +243,8 @@ const t = useTranslations(lang);
         cur_game.sendAction('JOIN', tableName, (msg) => {
             if (!msg.startsWith('ERROR')) {
                 cur_game.secret = msg;
+                // @ts-ignore
+                show_message(TranslateMessage['join_succ']);
                 document.getElementById('lobby-view').classList.add('hidden');
                 document.getElementById('game-view').classList.remove('hidden');
                 document.getElementById('current-table-title').textContent = `Mesa: ${tableName}`;
@@ -286,6 +311,39 @@ const t = useTranslations(lang);
                     refreshTableList();
                 }
             });
+        }
+    });
+
+    document.getElementById('console-btn')?.addEventListener('click', () => {
+        const elem = document.getElementById('command-panel');
+        elem?.classList.toggle('visible');
+    });
+
+    document.getElementById('command-form')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('m') as HTMLInputElement;
+        socket.emit('action', input.value);
+        input.value = '';
+    });
+
+    socket.on('response', (data) => {
+        const msgList = document.getElementById('messages');
+        if (msgList) {
+            const li = document.createElement('li');
+            li.textContent = 'RESPONSE: ' + data;
+            msgList.appendChild(li);
+            msgList.scrollTop = msgList.scrollHeight;
+        }
+    });
+
+    socket.on('info', (msg) => {
+        const msgList = document.getElementById('messages');
+        if (msgList) {
+            const li = document.createElement('li');
+            li.textContent = 'INFO: ' + msg;
+            li.className = 'info';
+            msgList.appendChild(li);
+            msgList.scrollTop = msgList.scrollHeight;
         }
     });
 
@@ -451,22 +509,92 @@ const t = useTranslations(lang);
 
   .icon-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-weight: bold; }
 
-  /* Game UI Fixes */
-  #infobox, #choiceArea {
-    background: rgba(30, 35, 45, 0.9) !important;
+  /* Console Panel */
+  #command-panel {
+    position: fixed;
+    right: -320px;
+    top: 0;
+    width: 300px;
+    height: 100%;
+    background: rgba(15, 15, 20, 0.95);
     backdrop-filter: blur(10px);
-    border: 2px solid var(--accent) !important;
-    border-radius: 20px;
+    border-left: 1px solid var(--accent);
+    z-index: 1000;
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+  }
+
+  #command-panel.visible {
+    right: 0;
+  }
+
+  .console-log {
+    flex: 1;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: #aaa;
+  }
+
+  .console-log li { margin-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.3rem; }
+  .console-log .info { color: var(--accent); }
+
+  .console-input {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .console-input input {
+    flex: 1;
+    background: #000;
+    border: 1px solid #333;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+  }
+
+  /* Global UI Overlays (Info & Choices) */
+  #infobox, #choiceArea {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999; /* Ensure it's above EVERYTHING */
+    width: 90%;
+    max-width: 500px;
+    background: rgba(25, 30, 40, 0.98) !important;
+    backdrop-filter: blur(15px);
+    border: 3px solid var(--accent) !important;
+    border-radius: 28px;
     color: white !important;
-    box-shadow: 0 20px 80px rgba(0,0,0,0.8);
+    box-shadow: 0 50px 120px rgba(0,0,0,0.9);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 2rem;
-    height: auto !important;
-    min-height: 10em;
+    padding: 3rem;
+    min-height: 14em;
+    pointer-events: all;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
+
+  #infobox.animated, #choiceArea.active {
+    visibility: visible;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  #infobox:not(.animated) { transform: translate(-50%, -50%) scale(0.9); }
+  #choiceArea:not(.active) { transform: translate(-50%, -50%) scale(0.9); }
 
   #infocontent {
     color: white !important;
