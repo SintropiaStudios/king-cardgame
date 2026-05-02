@@ -377,7 +377,7 @@ handleCommand ctx ["PLAY", usr, sec, cardStr] = do
                                     -- 5. Trick Evaluation (4 cards played)
                                     let playedCards = map snd newTrickCards
                                         -- Calculate the round number (1-13) based on cards remaining
-                                        roundNum = 14 - length newHand
+                                        roundNum = 13 - length newHand
 
                                         (winRelIdx, score) = evaluateTrick currentRule roundNum playedCards
                                         winnerName = fst (newTrickCards !! winRelIdx)

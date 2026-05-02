@@ -209,9 +209,8 @@ main = hspec $ do
                 evaluateTrick RKing 1 ["5H", "AS", "AC", "TH"] `shouldBe` (3, 0)
 
             it "DuasUltimas scores 0 for rounds 1-11, and -90 for rounds 12 and 13" $ do
-                -- Python checks for round > 10 (0-indexed) so rounds 11 and 12. 
                 -- In 1-indexed, that's rounds 12 and 13.
-                evaluateTrick R2Ultimas 10 ["5H", "KS", "AC", "TH"] `shouldBe` (3, 0)
+                evaluateTrick R2Ultimas 11 ["5H", "KS", "AC", "TH"] `shouldBe` (3, 0)
                 evaluateTrick R2Ultimas 12 ["5H", "QS", "JS", "2H"] `shouldBe` (0, -90)
                 evaluateTrick R2Ultimas 13 ["5D", "QD", "JS", "2H"] `shouldBe` (1, -90)
 
