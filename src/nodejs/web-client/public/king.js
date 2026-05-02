@@ -50,7 +50,7 @@ var TranslateChoices = AllTranslateChoices['pt-br'];
 var TranslatedMessages = {
     'pt-br' : {
         'new_hand' : ["Sua vez de escolher a Regra, qual o jogo?", "Estas são as opções disponíveis, clique na desejada."],
-        'get_bid' : ["Sua vez de fazer um lance, quantas positivas?", "TODO: Aqui entra a historia (A deu 3, coberto por B com 4)."],
+        'get_bid' : ["Sua vez de fazer um lance, quantas positivas?", "Nenhum lance foi feito ainda.", "Qual será a sua oferta?"],
         'get_decision' : ["Temos uma oferta final, você aceita?", (max_bidder, max) => `${max_bidder} ofereceu ${max} positivas pela escolha.`],
         'get_trump' : ["Você tem a escolha!", "Escolha um dos naipes como o naipe Trunfo."],
         'game_start' : "Iniciando a Partida",
@@ -60,10 +60,14 @@ var TranslatedMessages = {
         'authorize' : "Usuário autenticado com sucesso.",
         'join_succ' : "Usuário juntou-se a uma mesa, esperando demais jogadores para iniciar partida.",
         'join_fail' : "Falha ao tentar juntar-se à mesa, possivelmente alguém chegou antes, tente novamente.",
+        'you': 'Você',
+        'passed': 'passou.',
+        'offered': (val) => `ofereceu ${val}.`,
+        'player_left': (player) => `${player} saiu da mesa. Partida encerrada.`
     },
     'en-us' : {
         'new_hand' : ["New Hand, what's the game?", "These are the choices, click the one you want to play."],
-        'get_bid' : ["You're the current man on, how much will you give?", "TODO: The best here would be a story about the bidding."],
+        'get_bid' : ["You're the current man on, how much will you give?", "No bids have been placed yet."],
         'get_decision' : ["We have a winning bid, do you take it?", (max_bidder, max) => `${max_bidder} offered ${max} tricks for the choice.`],
         'get_trump' : ["You've got the choice!", "Choose one of the suits as the trump suit."],
         'game_start' : "The game has started",
@@ -73,6 +77,9 @@ var TranslatedMessages = {
         'authorize' : "User is now authorized",
         'join_succ' : "Successfully joined a table. Waiting players.",
         'join_fail' : "Failed to Join a Table, possibly due to concurrent player, try again.",
+        'you': 'You',
+        'passed': 'passed.',
+        'offered': (val) => `offered ${val}.`
     },
 }
 
@@ -181,15 +188,37 @@ function Game(user) {
         }
 
         var msg = TranslateMessage['get_bid'];
-        //TODO: There is still a story to tell here
-        this.createChoiceBox(msg[0], msg[1], choices, 'BID');
+        var story = "";
+        
+        if (this.table.bid_history && this.table.bid_history.length > 0) {
+            var historyText = this.table.bid_history.map(function(h) {
+                var pName = (h.player === this.user) ? TranslateMessage['you'] : h.player;
+                if (h.bid === 0) return `${pName} ${TranslateMessage['passed']}`;
+                return `${pName} ${TranslateMessage['offered'](h.bid)}`;
+            }.bind(this)).join("<br/>");
+            story = historyText + "<br/><br/><strong>" + msg[2] + "</strong>";
+        } else {
+            story = msg[1];
+        }
+
+        this.createChoiceBox(msg[0], story, choices, 'BID');
     };
 
     // Show user UI so he can decide if he accepts or not the winning bid
     this.getDecision = function() {
         // Find the max bid and max bidder
         var max = Math.max(...this.table.bids);
-        var max_bidder = this.table.players[this.table.bids.indexOf(max)];
+
+        if (max <= 0) {
+            // No one made a bid. Auto-decline the decision so we can proceed directly to choosing Trump.
+            this.sendAction('DECIDE', 'False', function(msg) {
+                console.log('Auto-declined decision as there were no bids: ' + msg);
+            });
+            return;
+        }
+
+        var max_index = this.table.bids.indexOf(max);
+        var max_bidder = Object.keys(this.table.players).find(key => this.table.players[key] === max_index) || 'Ninguém';
         
         var msg = TranslateMessage['get_decision'];
         this.createChoiceBox(msg[0], msg[1](max_bidder, max), ['True', 'False'], 'DECIDE');
@@ -359,6 +388,12 @@ function Game(user) {
                 //TODO: Bid is over, on else show a message stating what happened
                 // e.g (No bids were made, A is gonna choose)
                 // e.g (A offered X but B refused, B to choose )
+            },
+            'LEAVE': function(game, player) {
+                show_message(TranslateMessage['player_left'](player[0]));
+                setTimeout(function() {
+                    document.getElementById('return-lobby-btn')?.click();
+                }, 3000);
             }
         };
 
@@ -424,6 +459,7 @@ function Table(user) {
         this.current_turn = this.players[starter];
         this.bids = [-1, -1, -1, -1];
         this.bids[this.current_turn] = -2;
+        this.bid_history = [];
     };
     
     this.addCard = function(card) {
@@ -477,7 +513,11 @@ function Table(user) {
     };
 
     this.setBid = function(bid) {
-        this.bids[this.current_bidder] = parseInt(bid);
+        var bidVal = parseInt(bid);
+        this.bids[this.current_bidder] = bidVal;
+        
+        var playerName = Object.keys(this.players).find(key => this.players[key] === this.current_bidder) || "Alguém";
+        this.bid_history.push({ player: playerName, bid: bidVal });
     };
 }
 

@@ -351,8 +351,16 @@ const t = useTranslations(lang);
     });
 
     document.getElementById('return-lobby-btn')?.addEventListener('click', () => {
+        // @ts-ignore
+        if (cur_game && cur_game.channel && cur_game.secret) {
+            // @ts-ignore
+            cur_game.sendAction('LEAVE', '', (msg) => {
+                console.log("LEAVE response:", msg);
+            });
+        }
         document.getElementById('game-view').classList.add('hidden');
         document.getElementById('lobby-view').classList.remove('hidden');
+        document.getElementById('current-table-title').textContent = 'King Online';
         refreshTableList();
     });
 
