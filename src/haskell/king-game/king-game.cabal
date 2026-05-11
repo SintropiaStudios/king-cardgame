@@ -97,8 +97,6 @@ foreign-library kingclient
   type:                native-shared
   
   -- The C++ linker will look for libkingclient.so
-  -- (lib-version-info handles linux symlinking conventions)
-  lib-version-info:    0:1:0 
   
   hs-source-dirs:      src
   

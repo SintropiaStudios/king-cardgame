@@ -91,7 +91,7 @@ startClientFFI c_srv c_sub c_usr c_pass cb = do
     pass <- peekCString c_pass
 
     -- C++ manages this thread but it is now blocked under Haskell control
-    runGameS srv sub usr pass (CppAgent cb)
+    runGameS srv sub usr pass Nothing (CppAgent cb)
 
 -- | C++ calls this to provide a decision (e.g., "PLAY Alice sec-A 10H")
 foreign export ccall "submit_action" submitActionFFI :: CString -> IO ()
