@@ -29,8 +29,8 @@ main = do
         socVal  = if length args >= 4 then read (args !! 3) else 0.5
         mTable  = if length args >= 5 then Just (args !! 4) else Nothing
         
-        king_srv_addr = "tcp://localhost:5555"
-        king_sub_addr = "tcp://localhost:5556"
+        king_srv_addr = "tcp://127.0.0.1:5555"
+        king_sub_addr = "tcp://127.0.0.1:5556"
         
         bot = SmartBot usrname riskVal socVal
 

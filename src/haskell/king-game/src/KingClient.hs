@@ -201,7 +201,7 @@ setPlayers game plrs = KingGame (KingTable tbl_name plrs) [] (player game) (secr
 startHand :: KingGame -> String -> [KingRule] -> KingGame
 startHand game starter rules = KingGame table (roundCards game) (player game) (secret game) starter_pos hands'
     where table       = kingTable game
-          starter_pos = fromJust (starter `elemIndex` players table) -- TODO: Remove FromJust
+          starter_pos = fromMaybe 0 (starter `elemIndex` players table)
           hands       = gameHands game
           hands'      = KingHand (Left rules) [] [] starter_pos : hands
 
@@ -209,8 +209,11 @@ startHand game starter rules = KingGame table (roundCards game) (player game) (s
 setHandRule :: KingGame -> KingRule -> KingGame
 setHandRule game rule = KingGame table (roundCards game) (player game) (secret game) (activeTurn game) hands'
     where table        = kingTable game
-          (hand:hands) = gameHands game
-          hands'       = KingHand (Right rule) (curRound hand) (handScore hand) (roundTurn hand) : hands
+          hands        = gameHands game
+          hands'       = if null hands 
+                         then [KingHand (Right rule) [] [] (activeTurn game)]
+                         else let (hand:hs) = hands
+                              in KingHand (Right rule) (curRound hand) (handScore hand) (roundTurn hand) : hs
 
 -- Moves a Turn
 moveTurn :: KingGame -> String -> KingGame
@@ -226,20 +229,28 @@ setupCards game cards = KingGame (kingTable game) cards (player game) (secret ga
 -- Current turn Player plays card on table
 playCard :: KingGame -> KingCard -> KingGame
 playCard KingGame{..} card = 
-    let nameCur       = players kingTable !! activeTurn
+    let tablePlrs     = players kingTable
+        nameCur       = if null tablePlrs then "" else tablePlrs !! (activeTurn `mod` length tablePlrs)
         name          = user player
-        (hand:hands)  = gameHands
-        hands'        = playRoundCard hand card : hands
-        cards'        = if nameCur == name then delete card roundCards else roundCards
+        hands         = gameHands
+        (hands', cards') = if null hands
+                           then (hands, roundCards)
+                           else let (hand:hs) = hands
+                                    h' = playRoundCard hand card : hs
+                                    c' = if nameCur == name then delete card roundCards else roundCards
+                                in (h', c')
     in KingGame kingTable cards' player secret activeTurn hands'
 
 -- End of Round, clear played cards add winner's score
 endRound :: KingGame -> String -> Int -> KingGame
 endRound game winner score = KingGame table (roundCards game) (player game) (secret game) 0 hands'
     where table        = kingTable game
-          wnr_pos      = fromJust (winner `elemIndex` players table)
-          (hand:hands) = gameHands game
-          hands'       = endHandRound hand wnr_pos score : hands
+          wnr_pos      = fromMaybe 0 (winner `elemIndex` players table)
+          hands        = gameHands game
+          hands'       = if null hands
+                         then []
+                         else let (hand:hs) = hands
+                              in endHandRound hand wnr_pos score : hs
 
 -- Giving a running game, returs a string that executes action CMD with arguments m_args if any
 mkPlayStr :: KingGame -> String -> Maybe String -> BS.ByteString
@@ -264,7 +275,7 @@ startGame srv sub usr pwd mTable = StateT $ \_ -> do
         -- if we are the 4th player.
         subscribe sub (BS.pack table)
         -- Small delay to let ZMQ subscription propagate
-        liftIO $ threadDelay 100000 
+        liftIO $ threadDelay 200000 
 
         secret <- joinTable srv player table
         if "ERROR" `isPrefixOf` secret

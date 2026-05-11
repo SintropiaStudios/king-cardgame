@@ -1,97 +1,152 @@
 {
   "Bot_15_Gambler": {
-    "games": 4,
-    "total_score": 560,
-    "wins": 2
+    "games": 8,
+    "total_score": 1605,
+    "wins": 4
   },
   "Bot_26_Coward": {
-    "games": 4,
-    "total_score": 1040,
-    "wins": 0
+    "games": 9,
+    "total_score": 2105,
+    "wins": 1
   },
   "Bot_14_Ghost": {
-    "games": 5,
-    "total_score": 925,
+    "games": 10,
+    "total_score": 1625,
     "wins": 1
   },
   "Bot_02_Agg_Soc": {
-    "games": 9,
-    "total_score": 1720,
-    "wins": 2
+    "games": 13,
+    "total_score": 2845,
+    "wins": 4
   },
   "Bot_18_Hybrid_B": {
-    "games": 2,
-    "total_score": 550,
+    "games": 5,
+    "total_score": 800,
     "wins": 0
   },
   "Bot_00_Agg_Ind": {
-    "games": 6,
-    "total_score": 1270,
-    "wins": 0
+    "games": 12,
+    "total_score": 2520,
+    "wins": 2
   },
   "Bot_03_Med_Ind": {
-    "games": 4,
-    "total_score": 2320,
+    "games": 5,
+    "total_score": 2350,
     "wins": 4
   },
   "Bot_12_Anchor": {
-    "games": 4,
-    "total_score": 410,
-    "wins": 0
+    "games": 8,
+    "total_score": 2090,
+    "wins": 3
   },
   "Bot_09_Wild": {
-    "games": 2,
-    "total_score": 60,
+    "games": 8,
+    "total_score": 600,
     "wins": 0
   },
   "Bot_05_Med_Soc": {
-    "games": 4,
-    "total_score": 1110,
+    "games": 7,
+    "total_score": 1530,
     "wins": 2
   },
   "Bot_13_Bully": {
-    "games": 2,
-    "total_score": 590,
-    "wins": 2
+    "games": 8,
+    "total_score": 1340,
+    "wins": 4
   },
   "Bot_16_Observer": {
-    "games": 2,
-    "total_score": 80,
-    "wins": 0
+    "games": 6,
+    "total_score": 1230,
+    "wins": 1
   },
   "Bot_10_Stoic": {
-    "games": 2,
-    "total_score": 270,
-    "wins": 0
+    "games": 8,
+    "total_score": 1175,
+    "wins": 1
   },
   "Bot_23_Balanced_1": {
-    "games": 1,
-    "total_score": -115,
-    "wins": 0
+    "games": 5,
+    "total_score": 500,
+    "wins": 2
   },
   "Bot_28_Analyst": {
-    "games": 1,
-    "total_score": -130,
+    "games": 8,
+    "total_score": 275,
     "wins": 0
   },
   "Bot_07_Saf_Med": {
-    "games": 2,
-    "total_score": 70,
-    "wins": 0
+    "games": 5,
+    "total_score": 760,
+    "wins": 1
   },
   "Bot_08_Saf_Soc": {
-    "games": 2,
-    "total_score": 610,
+    "games": 8,
+    "total_score": 1900,
     "wins": 0
   },
   "Bot_06_Saf_Ind": {
-    "games": 2,
-    "total_score": 1220,
-    "wins": 0
+    "games": 6,
+    "total_score": 2225,
+    "wins": 1
   },
   "Bot_27_Berserker": {
-    "games": 2,
-    "total_score": 920,
+    "games": 10,
+    "total_score": 2315,
+    "wins": 6
+  },
+  "Bot_25_Opportunist": {
+    "games": 6,
+    "total_score": 1510,
     "wins": 2
+  },
+  "Bot_29_Vanguard": {
+    "games": 9,
+    "total_score": 635,
+    "wins": 2
+  },
+  "Bot_24_Balanced_2": {
+    "games": 6,
+    "total_score": 835,
+    "wins": 2
+  },
+  "Bot_22_Ext_Social": {
+    "games": 4,
+    "total_score": 770,
+    "wins": 2
+  },
+  "Bot_01_Agg_Med": {
+    "games": 3,
+    "total_score": 555,
+    "wins": 0
+  },
+  "Bot_20_Hybrid_D": {
+    "games": 6,
+    "total_score": 355,
+    "wins": 2
+  },
+  "Bot_17_Hybrid_A": {
+    "games": 3,
+    "total_score": 540,
+    "wins": 0
+  },
+  "Bot_11_Chaos": {
+    "games": 1,
+    "total_score": -90,
+    "wins": 0
+  },
+  "Bot_19_Hybrid_C": {
+    "games": 6,
+    "total_score": 1800,
+    "wins": 2
+  },
+  "Bot_04_Med_Med": {
+    "games": 2,
+    "total_score": 300,
+    "wins": 0
+  },
+  "Bot_21_Ext_Risk": {
+    "games": 1,
+    "total_score": 125,
+    "wins": 0
   }
 }
