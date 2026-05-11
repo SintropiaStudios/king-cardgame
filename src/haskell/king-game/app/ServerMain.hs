@@ -8,12 +8,14 @@ import Control.Concurrent.Chan (newChan, readChan, writeChan)
 import Control.Monad (forever, forM_, when, void)
 import Control.Monad.IO.Class (liftIO, MonadIO (liftIO))
 import Data.ByteString.Char8 (pack, unpack)
+import System.IO (hSetBuffering, stdout, BufferMode(LineBuffering))
 
 import ServerLogic (emptyServerContext, handleCommand, finishList)
 import ProductionEnv (runProductionM)
 
 main :: IO ()
 main = do
+    hSetBuffering stdout LineBuffering
     putStrLn "Starting King Server (Haskell Edition)..."
     
     -- Initialize the global thread-safe state

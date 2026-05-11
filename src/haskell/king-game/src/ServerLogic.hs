@@ -13,8 +13,9 @@ module ServerLogic
 
 import qualified Data.Map.Strict as Map
 import Data.List (intercalate, find, elemIndex)
-import Data.Maybe (fromMaybe, mapMaybe)
+import Data.Maybe (fromMaybe, mapMaybe, isJust)
 import Control.Monad (when)
+import Debug.Trace (trace)
 
 import KingTypes (KingRule(..), KingCard, readRule, isPositiva, allNegativeRules, startingRules)
 import GameRules (evaluateTrick, isValidPlay, isHandComplete)
@@ -28,56 +29,37 @@ class Monad m => MonadGameEnv m where
     generateDeck :: m [[KingCard]]   -- Always returns 4 lists of 13 cards
 
 ----------------------------------------------------------------------
--- The Data Types
+-- Internal data
 ----------------------------------------------------------------------
-
--- | Defines the exact state of the table
-data GamePhase
-    = Lobby                             -- < 4 players
-    | WaitingForRule                    -- Waiting for the hand starter to pick a game
-    | Bidding [(String, Int)]           -- Positiva Auction: Log of all bids (Name, Amount)
-    | DecidingBid String                -- HighestBidderName
-    | ChoosingTrump String              -- WinnerName
-    | PlayingTrick [(String, KingCard)] -- Cards played in the current trick
-    | GameOver
-    deriving (Show, Eq)
-
--- | Represents the `User` class in Python
 data ServerUser = ServerUser
-    { uName    :: String
+    { pName :: String
     , uChannel :: String
     } deriving (Show, Eq)
 
-data ServerPlayer = ServerPlayer
-    { pName   :: String
-    , pSecret :: String
-    } deriving (Show, Eq)
-
--- | Represents the `KingTable` class in Python
-data ServerTable = ServerTable
-    { tName           :: String
-    , tPlayers        :: [ServerPlayer]
-    , tPhase          :: GamePhase
-    , tActiveTurn     :: Int                           -- Index (0-3) of whose turn it is
-    , tHandStarter    :: Int                           -- Index (0-3) of who starts the hand
-    , tPlayedHands    :: [(String, KingRule)]          -- History of played hands (only rules for now)
-    , tHands          :: Map.Map String [KingCard]     -- The Dealt Cards
-    , tHandScores     :: [Int]                         -- Tracks current points [P0, P1, P2, P3]
-    , tTotalScores    :: [Int]                         -- Tracls Total accumulated points
-    } deriving (Show, Eq)
-
--- Polling State (For Listing users)
-data PollingState = NotPolling | Polling [String] | Finished [String]
+data GamePhase = Lobby | WaitingForRule | Bidding [(String, Int)] | DecidingBid String | ChoosingTrump String | PlayingTrick [(String, KingCard)] | GameOver
     deriving (Show, Eq)
 
--- | Replaces global dicts g_users, g_tables, g_players
-data ServerContext = ServerContext
-    { scUsers  :: Map.Map String ServerUser     -- Tracks authorized users
-    , scTables :: Map.Map String ServerTable    -- Tracks available tables
-    , scPoll   :: PollingState                  -- Tracks the LISTUSERS roll call
+data ServerTable = ServerTable
+    { tName :: String
+    , tPlayers :: [ServerUser]
+    , tPhase :: GamePhase
+    , tActiveTurn :: Int
+    , tHandStarter :: Int
+    , tPlayedHands :: [(String, KingRule)]
+    , tHands :: Map.Map String [KingCard]
+    , tHandScores :: [Int]
+    , tTotalScores :: [Int]
     } deriving (Show, Eq)
 
--- | Calculates the available rules for a specific player based on the table's history log
+data PollState = NotPolling | Polling [String] | Finished [String]
+    deriving (Show, Eq)
+
+data ServerContext = ServerContext
+    { scUsers :: Map.Map String ServerUser
+    , scTables :: Map.Map String ServerTable
+    , scPoll :: PollState
+    } deriving (Show, Eq)
+
 availableRulesForPlayer :: [(String, KingRule)] -> String -> [KingRule]
 availableRulesForPlayer history playerName =
     let -- 1. Identify which negative rules have been played by ANYONE
@@ -87,7 +69,7 @@ availableRulesForPlayer history playerName =
         -- 2. Check if THIS player has already called a Positiva
         hasPlayedPositiva = any (\(p, r) -> p == playerName && isPositiva r) history
 
-        allPositivas = [RPositiva] -- They all "show" as POSITIVA, so just send one [RPositivaH, RPositivaC, RPositivaS, RPositivaD]
+        allPositivas = [RPositiva] -- They all "show" as POSITIVA, so just send one
 
     in if hasPlayedPositiva
        then if null availableNegatives
@@ -123,7 +105,7 @@ joinTable ctx name injectedId tId = do
         then Left "ERROR User already in table"
         else if length currentPlayers >= 4
             then Left "ERROR Table is already full"
-            else let newTable = table { tPlayers = currentPlayers ++ [ServerPlayer name injectedId] }
+            else let newTable = table { tPlayers = currentPlayers ++ [ServerUser name injectedId] }
                      ctx' = ctx { scTables = Map.insert tId newTable (scTables ctx) }
                  in Right (injectedId, ctx')
 
@@ -149,13 +131,12 @@ getNamesOnTable' = map pName . tPlayers
 -- | Finds the table and player info for a given user
 findUserTable :: ServerContext -> String -> String -> Maybe (String, ServerTable)
 findUserTable ctx usr sec =
-    let tablesWithUser = Map.toList $ Map.filter (\t -> ServerPlayer usr sec `elem` tPlayers t) (scTables ctx)
+    let tablesWithUser = Map.toList $ Map.filter (\t -> ServerUser usr sec `elem` tPlayers t) (scTables ctx)
     in case tablesWithUser of
         (tId, table):_ -> Just (tId, table)
         [] -> Nothing
 
 -- | Validates ONLY that the user is at the table and using the correct secret.
--- Turn validation is left to the specific commands.
 validateTableMembership :: ServerContext -> String -> String -> Either String (String, ServerTable, Int)
 validateTableMembership ctx usr sec = do
     (tId, table) <- maybeToEither "ERROR User not at table" (findUserTable ctx usr sec)
@@ -179,31 +160,32 @@ finishList ctx =
         _ -> ("ERROR No active poll", [], ctx)
 
 ----------------------------------------------------------------------
--- | The core pure state machine.
--- Takes: Context -> InjectedID -> CommandWords
--- Returns: (DirectReply, OptionalBroadcast, NewContext)
+-- | The core entry point for all commands.
 ----------------------------------------------------------------------
 handleCommand :: MonadGameEnv m => ServerContext -> [String] -> m (String, [String], ServerContext)
+handleCommand ctx tokens = 
+    -- trace ("DEBUG: handleCommand tokens=" ++ show tokens) $ 
+    handleCommand' ctx tokens
+
+handleCommand' :: MonadGameEnv m => ServerContext -> [String] -> m (String, [String], ServerContext)
 
 ----------------------------------------------------------------------
 -- AUTHORIZE <username> <password>
 ----------------------------------------------------------------------
--- Note: In final system, password check against a DB here.
--- For this pure state, we trust the auth and generate the user.
-handleCommand ctx ["AUTHORIZE", usr, _pwd] = do
+handleCommand' ctx ["AUTHORIZE", usr, _pwd] = do
     channel <- generateId
     let newUser = ServerUser usr channel
         ctx' = ctx { scUsers = Map.insert usr newUser (scUsers ctx) }
     return (channel, [], ctx')
 
 ----------------------------------------------------------------------
--- TABLE <username> <channel>
+-- TABLE <username> <channel> [tableName]
 ----------------------------------------------------------------------
-handleCommand ctx ["TABLE", usr, chan]
+handleCommand' ctx ("TABLE":usr:chan:rest)
     | not (isAuthorized ctx usr chan) = pure ("ERROR User not authorized", [], ctx)
     | otherwise = do
-        tId <- generateId
-        -- Python's server.py creates the table but does NOT automatically add the user to it.
+        generatedId <- generateId
+        let tId = if null rest then generatedId else head rest
         let newTable = ServerTable
                     { tName = tId
                     , tPlayers = []
@@ -221,57 +203,51 @@ handleCommand ctx ["TABLE", usr, chan]
 ----------------------------------------------------------------------
 -- LIST (No arguments)
 ----------------------------------------------------------------------
-handleCommand ctx ["LIST"] = do
+handleCommand' ctx ["LIST"] = do
     let tablesList = Map.toList (scTables ctx)
-
         formatTable (tId, table) =
             "{\"name\": \"" ++ tId ++ "\", \"players\": [" ++
             intercalate ", " (map (\p -> "\"" ++ pName p ++ "\"") (tPlayers table)) ++
             "]}"
-
         jsonStr = "[" ++ intercalate ", " (map formatTable tablesList) ++ "]"
-
     return (jsonStr, [], ctx)
 
 ----------------------------------------------------------------------
 -- JOIN <username> <channel> <table_id>
 ----------------------------------------------------------------------
-handleCommand ctx ["JOIN", usr, chan, tId]
+handleCommand' ctx ("JOIN":usr:chan:tId:_)
     | not (isAuthorized ctx usr chan) = pure ("ERROR User not authorized", [], ctx)
     | otherwise = do
         secret <- generateId
         case joinTable ctx usr secret tId of
             Left error -> return (error, [], ctx)
-            -- Join is good, now attempt to start the table if we have 4 players
             Right (secret, ctx') -> case startTable ctx' tId of
-                Nothing               -> return (secret, [], ctx') -- Not enough, but the join was successful
+                Nothing               -> return (secret, [], ctx')
                 Just (table, ctx'') -> do
                     initialDeck <- generateDeck
                     let handsMap = Map.fromList $ zip (map pName (tPlayers table)) initialDeck
                         updatedT = table { tHands = handsMap }
                         finalCtx = ctx'' { scTables = Map.insert tId updatedT (scTables ctx'') }
-                        tablePlayers = getNamesOnTable' table   -- TODO needs to be shuffled so that the hand starter is first in the list (turn has to be set as well to match)
+                        tablePlayers = getNamesOnTable' table
                         msgTableOrder = tId ++ " START " ++ unwords tablePlayers
                         msgInitialHand = tId ++ " STARTHAND " ++ head tablePlayers ++ " " ++ unwords (map show startingRules)
-
                     return (secret, [msgTableOrder, msgInitialHand], finalCtx)
 
 ----------------------------------------------------------------------
 -- GETHAND <username> <secret>
 ----------------------------------------------------------------------
-handleCommand ctx ["GETHAND", usr, sec] = do
+handleCommand' ctx ["GETHAND", usr, sec] = do
     case validateTableMembership ctx usr sec of
         Left err -> return (err, [], ctx)
         Right (_, table, _) ->
             let hand = Map.findWithDefault [] usr (tHands table)
-                -- Converts ["2H", "3C"] to valid JSON string '["2H", "3C"]'
                 jsonHand = "[" ++ intercalate ", " (map (\c -> "\"" ++ c ++ "\"") hand) ++ "]"
             in return (jsonHand, [], ctx)
 
 ----------------------------------------------------------------------
 -- GAME <username> <secret> <rule_string>
 ----------------------------------------------------------------------
-handleCommand ctx ["GAME", usr, sec, ruleStr] = do
+handleCommand' ctx ["GAME", usr, sec, ruleStr] = do
     case validateTableMembership ctx usr sec of
         Left err -> return (err, [], ctx)
         Right (tId, table, pIndex) ->
@@ -291,25 +267,18 @@ handleCommand ctx ["GAME", usr, sec, ruleStr] = do
                             updatedTable = table
                                 { tPhase = Bidding []
                                 , tActiveTurn = nextTurn
-                                -- Don't add to Op-Log as Trump hasn't been decided
                                 }
                             ctx' = ctx { scTables = Map.insert tId updatedTable (scTables ctx) }
-
-                        -- Emit EXACTLY what Python did
                         return ("ACK", [tId ++ " BID " ++ nextPlayerName], ctx')
-
-                -- IF IT IS A NEGATIVE RULE: Go straight to the first trick!
                 else do
                     let starterIdx = tHandStarter table
                         starterName = pName (tPlayers table !! starterIdx)
                         updatedTable = table
                             { tPhase = PlayingTrick []
                             , tActiveTurn = starterIdx
-                            -- Add to Op-Log
                             , tPlayedHands = tPlayedHands table ++ [(usr, rule)]
                             }
                         ctx' = ctx { scTables = Map.insert tId updatedTable (scTables ctx) }
-
                         bcasts = [ tId ++ " GAME " ++ ruleStr
                                  , tId ++ " TURN " ++ starterName
                                  ]
@@ -318,50 +287,40 @@ handleCommand ctx ["GAME", usr, sec, ruleStr] = do
 ----------------------------------------------------------------------
 -- GETTURN <username> <secret>
 ----------------------------------------------------------------------
-handleCommand ctx ["GETTURN", usr, sec] = do
+handleCommand' ctx ["GETTURN", usr, sec] = do
     case validateTableMembership ctx usr sec of
         Left err -> return (err, [], ctx)
         Right (_tId, table, _pIndex) -> do
-            -- tActiveTurn is the index (0-3) of the player on the clock
             let turnName = pName (tPlayers table !! tActiveTurn table)
             return (turnName, [], ctx)
 
 ----------------------------------------------------------------------
 -- PLAY <username> <secret> <card_string>
 ----------------------------------------------------------------------
-handleCommand ctx ["PLAY", usr, sec, cardStr] = do
+handleCommand' ctx ["PLAY", usr, sec, cardStr] = do
     case validateTableMembership ctx usr sec of
         Left err -> return (err, [], ctx)
         Right (tId, table, pIndex) -> do
             case tPhase table of
                 PlayingTrick trickCards -> do
-                    -- 1. Turn Validation
                     if tActiveTurn table /= pIndex
                     then return ("ERROR Not your turn", [], ctx)
                     else do
-                        -- 2. Hand Validation (Do they actually have the card?)
                         let hand = Map.findWithDefault [] usr (tHands table)
                         if cardStr `notElem` hand
                         then return ("ERROR Card not in hand", [], ctx)
                         else do
-                            -- 3. GameRules Validation (Must follow suit, etc.)
-                            -- The active rule is the last one appended to the op-log
                             let currentRule = snd $ last (tPlayedHands table)
                                 tableCards = map snd trickCards
-
                             if not (isValidPlay currentRule tableCards hand cardStr)
                             then return ("ERROR Invalid play: must follow suit", [], ctx)
                             else do
-                                -- 4. State Update (Remove card from hand, add to table)
                                 let newHand = filter (/= cardStr) hand
                                     newHandsMap = Map.insert usr newHand (tHands table)
                                     newTrickCards = trickCards ++ [(usr, cardStr)]
-
                                     isTrickOver = length newTrickCards == 4
-
                                 if not isTrickOver
                                 then do
-                                    -- Trick continues, just advance the turn
                                     let nextTurn = (tActiveTurn table + 1) `mod` 4
                                         updatedTable = table
                                             { tPhase = PlayingTrick newTrickCards
@@ -374,57 +333,42 @@ handleCommand ctx ["PLAY", usr, sec, cardStr] = do
                                                 ]
                                     return ("ACK", bcast, ctx')
                                 else do
-                                    -- 5. Trick Evaluation (4 cards played)
                                     let playedCards = map snd newTrickCards
-                                        -- Calculate the round number (1-13) based on cards remaining
                                         roundNum = 13 - length newHand
-
                                         (winRelIdx, score) = evaluateTrick currentRule roundNum playedCards
                                         winnerName = fst (newTrickCards !! winRelIdx)
                                         winnerIdx = fromMaybe 0 (winnerName `elemIndex` map pName (tPlayers table))
-                                        -- Add the trick's score to the winner's tally
                                         updatedScores = addScore winnerIdx score (tHandScores table)
                                         endRoundBcast = tId ++ " ENDROUND " ++ winnerName ++ " " ++ show score
-
                                         updatedTable = table
-                                            { tPhase = PlayingTrick [] -- Clear the trick for the next round
-                                            , tActiveTurn = winnerIdx  -- Winner leads the next trick
+                                            { tPhase = PlayingTrick []
+                                            , tActiveTurn = winnerIdx
                                             , tHands = newHandsMap
                                             , tHandScores = updatedScores
                                             }
                                         ctx' = ctx { scTables = Map.insert tId updatedTable (scTables ctx) }
-
                                         bcast = [ tId ++ " PLAY " ++ cardStr
                                                 , endRoundBcast
                                                 , tId ++ " TURN " ++ winnerName
                                                 ]
-                                        -- Calculate the global remaining pool and check if hand ends
                                         remainingPool = concat (Map.elems newHandsMap)
                                         handEnded = isHandComplete currentRule remainingPool
-
                                     if not handEnded
-                                    then return ("ACK", bcast, ctx') -- Returns ENDROUND sequence only
+                                    then return ("ACK", bcast, ctx')
                                     else do
                                         let newTotalScores = zipWith (+) (tTotalScores table) updatedScores
                                             endHandBCast  = tId ++ " ENDHAND " ++ unwords (map show updatedScores)
-                                            isGameOver = length (tPlayedHands table) == 10 -- Game Finishes after 10 hands
-
+                                            isGameOver = length (tPlayedHands table) == 10
                                         if isGameOver
                                             then do
-                                                -- 10 hands complete. Calculate the global winner!
-                                                let maxScore = maximum newTotalScores
-                                                    winnerGlobalIdx = fromMaybe 0 (maxScore `elemIndex` newTotalScores)
-                                                    globalWinnerName = pName (tPlayers table !! winnerGlobalIdx)
-                                                    endGameBCast = tId ++ " GAMEOVER " ++ unwords (map show newTotalScores)
-
-                                                    updatedTable = table
+                                                let endGameBCast = tId ++ " GAMEOVER " ++ unwords (map show newTotalScores)
+                                                    updatedTableG = table
                                                         { tPhase = GameOver
                                                         , tHandScores = updatedScores
                                                         , tTotalScores = newTotalScores
-                                                        , tHands = Map.empty -- Empty the table
+                                                        , tHands = Map.empty
                                                         }
-                                                    ctx'' = ctx' { scTables = Map.insert tId updatedTable (scTables ctx') }
-
+                                                    ctx'' = ctx' { scTables = Map.insert tId updatedTableG (scTables ctx') }
                                                     bcasts = [ tId ++ " PLAY " ++ cardStr
                                                             , endRoundBcast
                                                             , endHandBCast
@@ -434,34 +378,30 @@ handleCommand ctx ["PLAY", usr, sec, cardStr] = do
                                             else do
                                                 newDeck <- generateDeck
                                                 let nextStarterIdx = (tHandStarter updatedTable + 1) `mod` 4
-                                                    nextStarterName = getNamesOnTable' finalTable !! nextStarterIdx
-                                                    availableRules = availableRulesForPlayer (tPlayedHands finalTable) nextStarterName
-                                                    msgStartHand = tId ++ " STARTHAND " ++ nextStarterName ++ " " ++ unwords (map show availableRules)
-
+                                                    nextStarterName = pName (tPlayers updatedTable !! nextStarterIdx)
                                                     finalTable = updatedTable
                                                         { tPhase = WaitingForRule
                                                         , tHandStarter = nextStarterIdx
                                                         , tActiveTurn = nextStarterIdx
                                                         , tHandScores = [0, 0, 0, 0]
                                                         , tTotalScores = newTotalScores
-                                                        , tHands = Map.fromList $ zip (map pName (tPlayers table)) newDeck
+                                                        , tHands = Map.fromList $ zip (map pName (tPlayers updatedTable)) newDeck
                                                         }
+                                                    availableRules = availableRulesForPlayer (tPlayedHands finalTable) nextStarterName
+                                                    msgStartHand = tId ++ " STARTHAND " ++ nextStarterName ++ " " ++ unwords (map show availableRules)
                                                     ctx'' = ctx' { scTables = Map.insert tId finalTable (scTables ctx') }
-
-                                                    -- Prepare STARTHAND message for the next hand
                                                     bcast'= [ tId ++ " PLAY " ++ cardStr
                                                             , endRoundBcast
                                                             , endHandBCast
                                                             , msgStartHand
                                                             ]
                                                 return ("ACK", bcast', ctx'')
-
                 _ -> return ("ERROR Game is not in trick-playing phase", [], ctx)
 
 ----------------------------------------------------------------------
 -- BID <username> <secret> <amount>
 ----------------------------------------------------------------------
-handleCommand ctx ["BID", usr, sec, valStr] = do
+handleCommand' ctx ["BID", usr, sec, valStr] = do
     case validateTableMembership ctx usr sec of
         Left err -> return (err, [], ctx)
         Right (tId, table, pIndex) -> do
@@ -473,60 +413,39 @@ handleCommand ctx ["BID", usr, sec, valStr] = do
                     else do
                         let bidVal = read valStr :: Int
                             newLog = bidLog ++ [(usr, bidVal)]
-
-                            -- A player is "active" if they haven't bid 0.
-                            -- (If they haven't bid at all yet, they are implicitly active)
                             hasPassed name = case lookup name (reverse newLog) of
                                                Just 0  -> True
                                                _       -> False
-
                             activePlayers = filter (not . hasPassed) (map pName (tPlayers table))
                             activeOthers = filter (/= callerName) activePlayers
-
-                        -- Determine the highest bidder so far
                         let highestBids = filter (\(_, v) -> v > 0) newLog
                             (highestBidder, maxBid) = if null highestBids
                                                       then ("", 0)
                                                       else foldl1 (\acc x -> if snd x > snd acc then x else acc) highestBids
-
-                        -- Calculate who is logically next
                         let getNextActive currentIdx =
                                 let nextIdx = (currentIdx + 1) `mod` 4
                                     nextName = pName (tPlayers table !! nextIdx)
                                 in (if (nextName == callerName) || hasPassed nextName then getNextActive nextIdx else (nextIdx, nextName))
-
                             (nextIdx, nextName) = getNextActive pIndex
-
-                        -- Check auction termination conditions
                         let isAuctionOver = null activeOthers || (not (null highestBids) && nextName == highestBidder)
-
                         if isAuctionOver
                         then do
                             let finalWinner = if null highestBids then callerName else highestBidder
-                                updatedTable = table
-                                    { tPhase = DecidingBid finalWinner
-                                    }
+                                updatedTable = table { tPhase = DecidingBid finalWinner }
                                 ctx' = ctx { scTables = Map.insert tId updatedTable (scTables ctx) }
-                                bcasts = [ tId ++ " BIDS " ++ valStr
-                                         , tId ++ " DECIDE " ++ callerName
-                                         ]
+                                bcasts = [ tId ++ " BIDS " ++ valStr, tId ++ " DECIDE " ++ callerName ]
                             return ("ACK", bcasts, ctx')
                         else do
-                            let updatedTable = table
-                                    { tPhase = Bidding newLog
-                                    , tActiveTurn = nextIdx
-                                    }
+                            let updatedTable = table { tPhase = Bidding newLog, tActiveTurn = nextIdx }
                                 ctx' = ctx { scTables = Map.insert tId updatedTable (scTables ctx) }
-                                bcasts = [ tId ++ " BIDS " ++ valStr
-                                         , tId ++ " BID " ++ nextName
-                                         ]
+                                bcasts = [ tId ++ " BIDS " ++ valStr, tId ++ " BID " ++ nextName ]
                             return ("ACK", bcasts, ctx')
                 _ -> return ("ERROR Game is not in bidding phase", [], ctx)
 
 ----------------------------------------------------------------------
 -- DECIDE <username> <secret> <True/False>
 ----------------------------------------------------------------------
-handleCommand ctx ["DECIDE", usr, sec, decisionStr] = do
+handleCommand' ctx ["DECIDE", usr, sec, decisionStr] = do
     case validateTableMembership ctx usr sec of
         Left err -> return (err, [], ctx)
         Right (tId, table, _pIndex) -> do
@@ -538,18 +457,16 @@ handleCommand ctx ["DECIDE", usr, sec, decisionStr] = do
                     else do
                         let accepted = decisionStr == "True"
                             trumpChooser = if accepted then highestBidder else callerName
-
                             updatedTable = table { tPhase = ChoosingTrump trumpChooser }
                             ctx' = ctx { scTables = Map.insert tId updatedTable (scTables ctx) }
                             bcasts = [ tId ++ " CHOOSETRUMP " ++ trumpChooser ]
-
                         return ("ACK", bcasts, ctx')
                 _ -> return ("ERROR Game is not waiting for a decision", [], ctx)
 
 ----------------------------------------------------------------------
 -- TRUMP <username> <secret> <suit_char>
 ----------------------------------------------------------------------
-handleCommand ctx ["TRUMP", usr, sec, suitStr] = do
+handleCommand' ctx ["TRUMP", usr, sec, suitStr] = do
     case validateTableMembership ctx usr sec of
         Left err -> return (err, [], ctx)
         Right (tId, table, _pIndex) -> do
@@ -560,111 +477,79 @@ handleCommand ctx ["TRUMP", usr, sec, suitStr] = do
                     else do
                         let starterIdx = tHandStarter table
                             starterName = pName (tPlayers table !! starterIdx)
-
                             updatedTable = table
                                 { tPhase = PlayingTrick []
                                 , tActiveTurn = starterIdx
-                                -- Add to Op-Log with chosen trump now so the rule is consumed
                                 , tPlayedHands = tPlayedHands table ++ [(usr, readRule ("POSITIVA" ++ suitStr))]
                                 }
                             ctx' = ctx { scTables = Map.insert tId updatedTable (scTables ctx) }
-
-                            -- Emit exactly what Python did: GAME POSITIVA <suit>
-                            bcasts = [ tId ++ " GAME POSITIVA " ++ suitStr
-                                     , tId ++ " TURN " ++ starterName
-                                     ]
-
+                            bcasts = [ tId ++ " GAME POSITIVA " ++ suitStr, tId ++ " TURN " ++ starterName ]
                         return ("ACK", bcasts, ctx')
                 _ -> return ("ERROR Game is not waiting for trump selection", [], ctx)
 
 ----------------------------------------------------------------------
 -- LEAVE <username> <secret>
 ----------------------------------------------------------------------
-handleCommand ctx ["LEAVE", usr, sec] = do
+handleCommand' ctx ["LEAVE", usr, sec] = do
     case validateTableMembership ctx usr sec of
         Left err -> return ("ERROR Player not in table", [], ctx)
         Right (tId, table, _pIndex) -> do
             let isNotStarted = tPhase table == Lobby
                 leaveBcast = tId ++ " LEAVE " ++ usr
-
             if isNotStarted
             then do
-                -- Safely remove the player from the lobby
                 let newPlayers = filter (\p -> pName p /= usr) (tPlayers table)
                     updatedTable = table { tPlayers = newPlayers }
                     ctx' = ctx { scTables = Map.insert tId updatedTable (scTables ctx) }
                 return ("ACK", [leaveBcast], ctx')
             else do
-                -- Game was already running! Destroy the table and boot everyone.
                 let scoreStr = unwords (map show (tTotalScores table))
-                    bcasts = [ leaveBcast
-                             , tId ++ " GAMEOVER " ++ scoreStr
-                             ]
-                    -- Remove the table entirely from the server context
+                    gameOverBcast = tId ++ " GAMEOVER " ++ scoreStr
                     ctx' = ctx { scTables = Map.delete tId (scTables ctx) }
-                return ("ACK", bcasts, ctx')
+                return ("ACK", [leaveBcast, gameOverBcast], ctx')
 
 ----------------------------------------------------------------------
 -- LISTUSERS (No arguments)
 ----------------------------------------------------------------------
-handleCommand ctx ["LISTUSERS"] = do
+handleCommand' ctx ["LISTUSERS"] = do
     case scPoll ctx of
         Polling _ -> return ("ERROR Listing in progress", [], ctx)
         _ -> do
-            -- Broadcast CONFIRM_AVAILABLE to every connected user's private channel
             let allUsers = Map.elems (scUsers ctx)
-                bcasts = map ((++ " CONFIRM_AVAILABLE") . uChannel) allUsers
+                bcasts = map (\u -> uChannel u ++ " CONFIRM_AVAILABLE") allUsers
                 ctx' = ctx { scPoll = Polling [] }
             return ("ACK", bcasts, ctx')
 
 ----------------------------------------------------------------------
 -- AVAILABLE <username> <channel>
 ----------------------------------------------------------------------
-handleCommand ctx ["AVAILABLE", usr, chan]
+handleCommand' ctx ["AVAILABLE", usr, chan]
     | not (isAuthorized ctx usr chan) = pure ("ERROR User not authorized", [], ctx)
     | otherwise = do
         case scPoll ctx of
             Polling activeUsers -> do
-                -- Add the user to the active list if they aren't already there
-                let newActive = if usr `elem` activeUsers then activeUsers else activeUsers ++ [usr]
-                    ctx' = ctx { scPoll = Polling newActive }
+                let ctx' = if usr `elem` activeUsers then ctx else ctx { scPoll = Polling (usr : activeUsers) }
                 return ("ACK", [], ctx')
             _ -> return ("ERROR Timeout on response", [], ctx)
 
 ----------------------------------------------------------------------
 -- MATCH <username> <channel> <p2> <p3> <p4>
 ----------------------------------------------------------------------
-handleCommand ctx ["MATCH", usr, chan, p2, p3, p4]
+handleCommand' ctx ["MATCH", usr, chan, p2, p3, p4]
     | not (isAuthorized ctx usr chan) = pure ("ERROR User not authorized", [], ctx)
     | otherwise = do
         case scPoll ctx of
             Finished activeUsers -> do
                 let requestedOthers = [p2, p3, p4]
-                    validOthers = filter (`elem` activeUsers) requestedOthers
-
-                if length validOthers == 3
+                if all (`elem` activeUsers) requestedOthers
                 then do
-                    -- All requested players are available. Generate a new table ID!
                     tId <- generateId
-
-                    -- Create an empty Lobby. (The creator still needs to send JOIN!)
                     let newTable = ServerTable
-                            { tName = tId
-                            , tPlayers = []
-                            , tPhase = Lobby
-                            , tActiveTurn = 0
-                            , tHandStarter = 0
-                            , tPlayedHands = []
-                            , tHands = Map.empty
-                            , tHandScores = [0, 0, 0, 0]
-                            , tTotalScores = [0, 0, 0, 0]
-                            }
+                            { tName = tId, tPlayers = [ServerUser usr chan], tPhase = Lobby, tActiveTurn = 0, tHandStarter = 0
+                            , tPlayedHands = [], tHands = Map.empty, tHandScores = [0, 0, 0, 0], tTotalScores = [0, 0, 0, 0] }
                         ctx' = ctx { scTables = Map.insert tId newTable (scTables ctx) }
-
-                        -- Retrieve the private channels for the 3 invited players
-                        otherUsers = mapMaybe (`Map.lookup` scUsers ctx') validOthers
+                        otherUsers = mapMaybe (`Map.lookup` scUsers ctx') requestedOthers
                         bcasts = map (\srvUsr -> uChannel srvUsr ++ " ASKJOIN " ++ tId) otherUsers
-
                     return (tId, bcasts, ctx')
                 else
                     return ("ERROR You must inform 3 or 4 other valid players", [], ctx)
@@ -673,4 +558,4 @@ handleCommand ctx ["MATCH", usr, chan, p2, p3, p4]
 ----------------------------------------------------------------------
 -- FALLBACK
 ----------------------------------------------------------------------
-handleCommand ctx _ = pure ("ERROR Invalid or unrecognized command", [], ctx)
+handleCommand' ctx _ = pure ("ERROR Invalid or unrecognized command", [], ctx)

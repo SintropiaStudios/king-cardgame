@@ -25,7 +25,7 @@ import System.ZMQ4.Monadic
       connect, runZMQ, socket,
       Req(Req), Sub(Sub) )
 
-import KingClient (KingGame, Player(..), ExpectedAction(..), ActionResponse(..), executeActionS, mkGame, startGame, updateGame)
+import KingClient
 
 ----------------------------------------------------------------------------------
 -- 1. The STM Communication Bridge
@@ -86,7 +86,12 @@ networkLoop info srv env game = do
     liftIO $ when (msgStr /= "") $ atomically $ writeTQueue (envNotify env) msgStr
 
     case action of
-        KOver msg -> liftIO $ putStrLn $ "Game has ended: " ++ msg
+        KOver msg -> liftIO $ do
+            let scores = words msg
+                playerNames = players (kingTable game')
+                results = zip playerNames scores
+                resultStr = unwords $ map (\(n, s) -> n ++ ":" ++ s) results
+            putStrLn $ "RESULT: " ++ resultStr
         KWait     -> networkLoop info srv env game'
         _         -> do
             -- A helper loop to relentlessly demand a valid action
@@ -107,8 +112,8 @@ networkLoop info srv env game = do
             requestAction action
             networkLoop info srv env game'
 
-runGameS :: ContextAwareAgent a => String -> String -> String -> String -> a -> IO ()
-runGameS srv_addr sub_addr usrname passwrd initialAgent = do
+runGameS :: ContextAwareAgent a => String -> String -> String -> String -> Maybe String -> a -> IO ()
+runGameS srv_addr sub_addr usrname passwrd mTable initialAgent = do
     -- Initialize the STM Bridge
     env <- atomically $ do
         gState <- newTVar (mkGame (Player usrname "") "" "")
@@ -127,7 +132,7 @@ runGameS srv_addr sub_addr usrname passwrd initialAgent = do
             info <- socket Sub
             connect info sub_addr
 
-            (suc, g) <- runStateT (startGame srv info usrname passwrd) (mkGame (Player usrname "") "" "")
+            (suc, g) <- runStateT (startGame srv info usrname passwrd mTable) (mkGame (Player usrname "") "" "")
             if not suc
                 then liftIO $ putStrLn "Error during game setup."
                 else networkLoop info srv env g

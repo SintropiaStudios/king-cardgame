@@ -24,6 +24,7 @@ library
       GameRules
       KingClient
       BaseClient
+      KingAgent
       ServerLogic
       ProductionEnv
   hs-source-dirs:

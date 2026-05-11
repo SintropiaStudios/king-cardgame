@@ -30,6 +30,7 @@ import Data.List
 import Data.List.Split
 import Control.Monad
 import Control.Monad.State
+import Control.Concurrent (threadDelay)
 
 import Text.JSON.Generic
 import qualified Data.ByteString.Char8 as BS
@@ -251,20 +252,34 @@ mkPlayStr game cmd m_args = BS.pack $ unwords $ lst m_args
 ----------------------------------------------------------------------------------
 -- Connection Setup
 ----------------------------------------------------------------------------------
-
 --- Start a Game Session by Authorizing, Finding and Joining a Table, and Syncing State
-startGame :: (Sender s, Receiver s, Subscriber r) => Socket z s -> Socket z r -> String -> String -> KingGameS z Bool
-startGame srv sub usr pwd = StateT $ \_ -> do
+startGame :: (Sender s, Receiver s, Subscriber r) => Socket z s -> Socket z r -> String -> String -> Maybe String -> KingGameS z Bool
+startGame srv sub usr pwd mTable = StateT $ \_ -> do
         player <- authorize srv usr pwd
-        table <- huntTable srv player
+        table <- case mTable of
+                    Just t  -> return t
+                    Nothing -> huntTable srv player
 
-        -- Before Joining is important to subscribe to that Table's channel to not miss any message
+        -- CRITICAL: Subscribe BEFORE joining to ensure we don't miss the START broadcast
+        -- if we are the 4th player.
         subscribe sub (BS.pack table)
+        -- Small delay to let ZMQ subscription propagate
+        liftIO $ threadDelay 100000 
 
         secret <- joinTable srv player table
         if "ERROR" `isPrefixOf` secret
-            then
-                return (False, mkGame player "" "")
+            then do
+                -- If it failed because table doesn't exist, try creating it if it was requested
+                if isJust mTable
+                then do
+                    tName <- createTable srv player mTable
+                    -- Re-subscribe just in case (though usually same)
+                    subscribe sub (BS.pack tName)
+                    sec <- joinTable srv player tName
+                    if "ERROR" `isPrefixOf` sec
+                        then return (False, mkGame player "" "")
+                        else return (True, mkGame player tName sec)
+                else return (False, mkGame player "" "")
             else
                 return (True, mkGame player table secret)
 
@@ -278,10 +293,13 @@ authorize skt name secret = do
     return $ Player name $ BS.unpack channel
 
 -- Creates a Table for Authorized Player player on srv ZMQ Req Socket
-createTable :: (Sender s, Receiver s) => Socket z s -> Player -> ZMQ z String
-createTable srv player = do
+createTable :: (Sender s, Receiver s) => Socket z s -> Player -> Maybe String -> ZMQ z String
+createTable srv player mName = do
     liftIO $ putStrLn "Requesting a Table to server ..."
-    send srv [] (BS.pack ("TABLE " ++ mkPlayerStr player))
+    let cmd = case mName of
+                Just name -> "TABLE " ++ mkPlayerStr player ++ " " ++ name
+                Nothing   -> "TABLE " ++ mkPlayerStr player
+    send srv [] (BS.pack cmd)
     table_name <- receive srv
     return $ BS.unpack table_name
 
@@ -293,7 +311,7 @@ huntTable srv player = do
     lst <- receive srv
     let tables = (decodeJSON (BS.unpack lst) :: [KingTable])
     case tables of
-        []  -> createTable srv player
+        []  -> createTable srv player Nothing
         x:_ -> return $ name x
 
 -- Joins Table with name table with Authorized Player player in srv ZMQ Req Socket
