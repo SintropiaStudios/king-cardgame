@@ -1,0 +1,45 @@
+# ==========================================
+# Stage 1: The Builder
+# ==========================================
+FROM haskell:9.10 AS builder
+
+WORKDIR /opt/build
+
+# Install the system-level C libraries required by ZeroMQ
+RUN apt-get update && apt-get install -y \
+    libzmq3-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the cabal files and source code
+COPY . .
+
+# Update cabal and build the executable
+RUN cabal update && \
+    cabal install exe:king-bot-pool-exe \
+    --installdir=/opt/build/bin \
+    --overwrite-policy=always
+
+# ==========================================
+# Stage 2: The Production Runtime
+# ==========================================
+FROM debian:bookworm-slim
+
+WORKDIR /app
+
+# Install ONLY the runtime ZeroMQ library
+RUN apt-get update && apt-get install -y \
+    libzmq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the compiled binary and the bot pool configuration
+COPY --from=builder /opt/build/bin/king-bot-pool-exe /usr/local/bin/king-bot-pool
+COPY scripts/bot_pool.json /app/scripts/bot_pool.json
+
+# Environment variables for server discovery
+ENV KING_SERVER_ADDR="tcp://king-server:5555"
+ENV KING_SUB_ADDR="tcp://king-server:5556"
+ENV BOT_POOL_PATH="/app/scripts/bot_pool.json"
+
+# Run the bot pool
+CMD ["king-bot-pool"]

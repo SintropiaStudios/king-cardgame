@@ -4,25 +4,28 @@ module BaseClient
     , ContextAwareAgent(..)
     , runAgentThread
     , networkLoop
+    , idleLoop
     , runGameS
     )
  where
 
 import Control.Monad.State ( StateT(runStateT), MonadIO(liftIO) )
 
-import Control.Monad (when)
+import Control.Monad (when, void)
+import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM
     ( TVar, atomically, newTVar, readTVar, readTVarIO, writeTVar,
       newEmptyTMVar, putTMVar, takeTMVar, TMVar,
       TQueue, newTQueue, readTQueue, writeTQueue, orElse )
 import Control.Concurrent.Async (concurrently_)
+import Data.Maybe (fromMaybe)
 import System.IO ()
 import System.Exit ()
 import System.Environment ()
 import qualified Data.ByteString.Char8 as BS
 import System.ZMQ4.Monadic
-    ( ZMQ, Sender, Receiver, Socket,
-      connect, runZMQ, socket,
+    ( ZMQ, Sender, Receiver, Subscriber, Socket,
+      connect, runZMQ, socket, subscribe, receive, send,
       Req(Req), Sub(Sub) )
 
 import KingClient
@@ -112,6 +115,24 @@ networkLoop info srv env game = do
             requestAction action
             networkLoop info srv env game'
 
+-- | The Idle Loop: Listens for invitations or status checks.
+-- Returns the table ID if an invitation is accepted.
+idleLoop :: (Sender s, Receiver s, Receiver r) => Socket z r -> Socket z s -> Player -> ZMQ z String
+idleLoop info srv p = do
+    msg <- receive info
+    let strMsg = BS.unpack msg
+    liftIO $ putStrLn $ "[Idle] Received: " ++ strMsg
+    case words strMsg of
+        [chan, "CONFIRM_AVAILABLE"] | chan == channel p -> do
+            liftIO $ putStrLn $ "[Idle] Responding to availability check for " ++ user p
+            send srv [] $ BS.pack $ "AVAILABLE " ++ user p ++ " " ++ channel p
+            void $ receive srv
+            idleLoop info srv p
+        [chan, "ASKJOIN", tId] | chan == channel p -> do
+            liftIO $ putStrLn $ "[Idle] Accepting invitation to table: " ++ tId
+            return tId
+        _ -> idleLoop info srv p
+
 runGameS :: ContextAwareAgent a => String -> String -> String -> String -> Maybe String -> a -> IO ()
 runGameS srv_addr sub_addr usrname passwrd mTable initialAgent = do
     -- Initialize the STM Bridge
@@ -122,18 +143,40 @@ runGameS srv_addr sub_addr usrname passwrd mTable initialAgent = do
         notif  <- newTQueue
         return $ ClientEnv gState req rsp notif
 
-    -- Run both threads simultaneously
-    concurrently_
-        (runAgentThread env initialAgent)
-        (runZMQ $ do
-            srv <- socket Req
-            connect srv srv_addr
+    -- Run the ZMQ flow
+    runZMQ $ do
+        srv <- socket Req
+        connect srv srv_addr
 
-            info <- socket Sub
-            connect info sub_addr
+        info <- socket Sub
+        connect info sub_addr
 
-            (suc, g) <- runStateT (startGame srv info usrname passwrd mTable) (mkGame (Player usrname "") "" "")
-            if not suc
-                then liftIO $ putStrLn "Error during game setup."
-                else networkLoop info srv env g
-        )
+        p <- authorize srv info usrname passwrd
+        
+        -- If mTable is "IDLE", we wait for an invitation
+        tId <- if mTable == Just "IDLE"
+                then idleLoop info srv p
+                else case mTable of
+                        Just t  -> return t
+                        Nothing -> huntTable srv p
+
+        -- Standard Game Setup after table is identified
+        subscribe info (BS.pack tId)
+        liftIO $ threadDelay 200000 
+        
+        sec <- joinTable srv p tId
+        let g = mkGame p tId sec
+        
+        liftIO $ concurrently_
+            (runAgentThread env initialAgent)
+            (runZMQ $ do
+                -- Inner ZMQ context for the network loop (or we could pass the existing one)
+                -- Actually, runZMQ creates a new context. To share sockets we'd need to pass them.
+                -- But sockets can't be shared across contexts. Let's just create new ones for simplicity.
+                srv' <- socket Req
+                connect srv' srv_addr
+                info' <- socket Sub
+                connect info' sub_addr
+                subscribe info' (BS.pack tId)
+                networkLoop info' srv' env g
+            )

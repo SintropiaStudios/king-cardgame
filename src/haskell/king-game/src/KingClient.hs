@@ -15,6 +15,9 @@ module KingClient
     , mkPlayStr
     , updateGame
     , startGame
+    , authorize
+    , huntTable
+    , joinTable
     , executeActionS
     , setPlayers
     , startHand
@@ -266,7 +269,7 @@ mkPlayStr game cmd m_args = BS.pack $ unwords $ lst m_args
 --- Start a Game Session by Authorizing, Finding and Joining a Table, and Syncing State
 startGame :: (Sender s, Receiver s, Subscriber r) => Socket z s -> Socket z r -> String -> String -> Maybe String -> KingGameS z Bool
 startGame srv sub usr pwd mTable = StateT $ \_ -> do
-        player <- authorize srv usr pwd
+        player <- authorize srv sub usr pwd
         table <- case mTable of
                     Just t  -> return t
                     Nothing -> huntTable srv player
@@ -296,12 +299,15 @@ startGame srv sub usr pwd mTable = StateT $ \_ -> do
 
 -- Authorizes Given user using provided password
 -- Returns Player (TODO: Either String Player and deal with errors)
-authorize :: (Sender s, Receiver s) => Socket z s -> String -> String -> ZMQ z Player
-authorize skt name secret = do
+authorize :: (Sender s, Receiver s, Subscriber r) => Socket z s -> Socket z r -> String -> String -> ZMQ z Player
+authorize skt sub name secret = do
     liftIO $ putStrLn "Authorizing Player ..."
     send skt [] (BS.pack ("AUTHORIZE " ++ name ++ " " ++ secret))
-    channel <- receive skt
-    return $ Player name $ BS.unpack channel
+    channelBS <- receive skt
+    let channel = BS.unpack channelBS
+    -- CRITICAL: Subscribe to personal channel for invitations and notifications
+    subscribe sub channelBS
+    return $ Player name channel
 
 -- Creates a Table for Authorized Player player on srv ZMQ Req Socket
 createTable :: (Sender s, Receiver s) => Socket z s -> Player -> Maybe String -> ZMQ z String

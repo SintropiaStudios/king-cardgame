@@ -45,8 +45,27 @@ const t = useTranslations(lang);
                         <span class="icon">➕</span>
                         <span class="label">{t('lobby.create_table')}</span>
                     </button>
+                    <button id="open-match-modal" class="action-tile-btn">
+                        <span class="icon">🤖</span>
+                        <span class="label">{lang === 'en' ? 'Setup Table' : 'Montar Mesa'}</span>
+                    </button>
                     <button id="show-user-list-btn" class="secondary-btn">{t('lobby.opponents')}</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Matchmaking Modal -->
+    <div id="matchmaking-modal" class="modal-overlay hidden-modal">
+        <div class="modal-card">
+            <h4>{lang === 'en' ? 'Invite Opponents' : 'Convidar Oponentes'}</h4>
+            <p class="subtitle" style="font-size: 0.9rem; color: #888; margin-bottom: 1rem;">
+                {lang === 'en' ? 'Select 3 opponents to start a match:' : 'Selecione 3 oponentes para iniciar:'}
+            </p>
+            <div id="available-opponents-list" class="user-selection-list"></div>
+            <div class="modal-footer">
+                <button id="start-match-btn" class="primary-btn">{lang === 'en' ? 'Start Match' : 'Iniciar Partida'}</button>
+                <button class="close-modal-btn secondary-btn" data-modal="matchmaking-modal">{lang === 'en' ? 'Cancel' : 'Cancelar'}</button>
             </div>
         </div>
     </div>
@@ -255,39 +274,94 @@ const t = useTranslations(lang);
         });
     }
 
-    function fetchUserList() {
-        const container = document.getElementById('online-users-list');
+    function fetchUserList(containerId = 'online-users-list') {
+        const container = document.getElementById(containerId);
         if (container) container.innerHTML = `<p class="loading-msg">${clientLang === 'en' ? 'Fetching...' : 'Buscando...'}</p>`;
         socket.emit('action', 'LISTUSERS');
+    }
+
+    function getBotBadge(name) {
+        if (!name.startsWith('Bot_')) return '';
+        const parts = name.split('_');
+        const diff = parts[2]; // Agg, Med, Saf
+        const pers = parts[3]; // Ind, Soc
+        
+        let color = '#888';
+        let label = diff;
+        
+        if (diff === 'Agg') { color = '#ff4d4d'; label = clientLang === 'en' ? 'Hard' : 'Difícil'; }
+        else if (diff === 'Med') { color = '#d4af37'; label = clientLang === 'en' ? 'Medium' : 'Médio'; }
+        else if (diff === 'Saf') { color = '#4dff4d'; label = clientLang === 'en' ? 'Easy' : 'Fácil'; }
+        
+        return `<span class="bot-badge" style="background: ${color}; color: black; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; margin-left: 8px;">${label}</span>`;
     }
 
     socket.on('info', (message) => {
         if (message.startsWith('user-list-channel')) {
             const users = message.split(' ').slice(1);
+            
+            // Update simple user list
             const container = document.getElementById('online-users-list');
-            if (!container) return;
-            if (users.length <= 1) { container.innerHTML = `<p class="empty-msg">No other users online.</p>`; return; }
-            container.innerHTML = users.filter(u => u !== cur_game?.user && u !== "").map(u => `
-                <div class="user-item"><label><input type="checkbox" class="user-checkbox" value="${u}" /> ${u}</label></div>
-            `).join('');
+            if (container) {
+                if (users.length <= 1) { container.innerHTML = `<p class="empty-msg">No other users online.</p>`; }
+                else {
+                    container.innerHTML = users.filter(u => u !== cur_game?.user && u !== "").map(u => `
+                        <div class="user-item">👤 ${u} ${getBotBadge(u)}</div>
+                    `).join('');
+                }
+            }
+
+            // Update matchmaking selection list
+            const matchContainer = document.getElementById('available-opponents-list');
+            if (matchContainer) {
+                 if (users.length <= 1) { matchContainer.innerHTML = `<p class="empty-msg">No opponents available.</p>`; }
+                 else {
+                    matchContainer.innerHTML = users.filter(u => u !== cur_game?.user && u !== "").map(u => `
+                        <div class="user-item">
+                            <label style="display: flex; align-items: center; width: 100%;">
+                                <input type="checkbox" class="match-checkbox" value="${u}" style="margin-right: 12px;" />
+                                👤 ${u} ${getBotBadge(u)}
+                            </label>
+                        </div>
+                    `).join('');
+                 }
+            }
         }
     });
 
     document.getElementById('refresh-tables-btn')?.addEventListener('click', refreshTableList);
+    
     document.getElementById('open-create-modal')?.addEventListener('click', () => {
         if (!isAuthorized) { alert(labels.auth_needed); return; }
-        // Skip naming, let server generate UUID
         cur_game.sendAction('TABLE', '', (msg) => {
             console.log("TABLE create response:", msg);
             refreshTableList();
-            // JOIN expects the table name/ID. The response 'msg' is the new UUID from Haskell server.
             setTimeout(() => joinTable(msg), 500);
         });
     });
-    document.getElementById('show-user-list-btn')?.addEventListener('click', () => {
+
+    document.getElementById('open-match-modal')?.addEventListener('click', () => {
         if (!isAuthorized) { alert(labels.auth_needed); return; }
-        document.getElementById('user-list-modal').classList.remove('hidden-modal');
-        fetchUserList();
+        document.getElementById('matchmaking-modal').classList.remove('hidden-modal');
+        fetchUserList('available-opponents-list');
+    });
+
+    document.getElementById('start-match-btn')?.addEventListener('click', () => {
+        const selected = Array.from(document.querySelectorAll('.match-checkbox:checked')).map((el: any) => el.value);
+        if (selected.length !== 3) {
+            alert(clientLang === 'en' ? 'Please select exactly 3 opponents.' : 'Por favor, selecione exatamente 3 oponentes.');
+            return;
+        }
+        
+        cur_game.sendAction('MATCH', selected.join(' '), (tId) => {
+            if (tId.startsWith('ERROR')) {
+                alert(tId);
+            } else {
+                document.getElementById('matchmaking-modal').classList.add('hidden-modal');
+                // The MATCH command returns the new table ID
+                setTimeout(() => joinTable(tId), 500);
+            }
+        });
     });
 
     document.querySelectorAll('.close-modal-btn').forEach(btn => {
@@ -642,9 +716,14 @@ const t = useTranslations(lang);
 
   .modal-footer { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem; }
 
-  #online-users-list { max-height: 300px; overflow-y: auto; margin-bottom: 1rem; }
-  .user-item { padding: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
-  .user-item label { display: flex; align-items: center; gap: 1rem; cursor: pointer; }
+  #online-users-list, .user-selection-list { max-height: 300px; overflow-y: auto; margin-bottom: 1rem; }
+  .user-item { 
+    padding: 0.8rem; 
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    align-items: center;
+  }
+  .user-item:hover { background: rgba(255,255,255,0.02); }
 
   /* Buttons */
   .primary-btn {
