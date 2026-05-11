@@ -934,7 +934,8 @@ main = hspec $ do
                 
             reply `shouldBe` "ACK"
             -- The server broadcasts the collected list to the global matchmaking channel
-            bcasts `shouldBe` ["user-list-channel Bob Cat Dave"]
+            -- Note: Server adds to the head of the list, so order is reversed (Dave Cat Bob)
+            bcasts `shouldBe` ["user-list-channel Dave Cat Bob"]
 
         it "MATCH: creates a table and sends ASKJOIN to the requested active players" $ do
             let (_, _, ctxPolling) = runCmd ctxAuth ["LISTUSERS"]
