@@ -154,7 +154,7 @@ finishList :: ServerContext -> (String, [String], ServerContext)
 finishList ctx =
     case scPoll ctx of
         Polling activeUsers ->
-            let bcasts = ["user-list-channel " ++ unwords activeUsers]
+            let bcasts = ["user-list-channel USERLIST " ++ unwords activeUsers]
                 ctx' = ctx { scPoll = Finished activeUsers }
             in ("ACK", bcasts, ctx')
         _ -> ("ERROR No active poll", [], ctx)

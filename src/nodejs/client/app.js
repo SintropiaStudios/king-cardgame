@@ -37,10 +37,12 @@ async function runSubscriptionHandler() {
             const content = args.slice(1).join(" ");
             
             // Forward message to everyone in the table room
+            // We strip the tableId (args[0]) because the client uses the remaining 
+            // string starting with the command (e.g., "START", "USERLIST", "PLAY")
             io.to(tableId).emit("info", content);
 
             // Log critical events for debugging
-            if (content.startsWith("START") || content.startsWith("STARTHAND") || content.startsWith("TURN") || content.startsWith("GAME")) {
+            if (content.startsWith("START") || content.startsWith("STARTHAND") || content.startsWith("TURN") || content.startsWith("GAME") || content.startsWith("USERLIST")) {
                 console.log(`[ZMQ BCAST] Table ${tableId}: ${content}`);
             }
         }
