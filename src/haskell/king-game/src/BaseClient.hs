@@ -12,12 +12,12 @@ module BaseClient
 import Control.Monad.State ( StateT(runStateT), MonadIO(liftIO) )
 
 import Control.Monad (when, void)
-import Control.Concurrent (threadDelay)
+import Control.Concurrent (threadDelay, forkIO)
 import Control.Concurrent.STM
     ( TVar, atomically, newTVar, readTVar, readTVarIO, writeTVar,
       newEmptyTMVar, putTMVar, takeTMVar, TMVar,
       TQueue, newTQueue, readTQueue, writeTQueue, orElse )
-import Control.Concurrent.Async (concurrently_)
+import Control.Concurrent.Async (race_)
 import Data.Maybe (fromMaybe)
 import System.IO ()
 import System.Exit ()
@@ -103,14 +103,18 @@ networkLoop info srv env game = do
                     liftIO $ atomically $ putTMVar (envActionReq env) loopAction
                     -- Wait for the Agent to reply
                     decisionStr <- liftIO $ atomically $ takeTMVar (envActionRsp env)
-                    -- Capture the server's response to our action
-                    reply <- executeActionS srv decisionStr                    
-                    -- If the server rejects the play, ask the UI again!
-                    case reply of
-                        KError replyStr -> do
-                            liftIO $ putStrLn $ "[Haskell] Server rejected play: " ++ replyStr
-                            requestAction loopAction
-                        KAck -> return ()
+                    
+                    if BS.null decisionStr
+                        then liftIO $ putStrLn $ "[Haskell] Agent returned empty action for " ++ show loopAction ++ ". State may be out of sync."
+                        else do
+                            -- Capture the server's response to our action
+                            reply <- executeActionS srv decisionStr                    
+                            -- If the server rejects the play, ask the UI again!
+                            case reply of
+                                KError replyStr -> do
+                                    liftIO $ putStrLn $ "[Haskell] Server rejected play: " ++ replyStr
+                                    requestAction loopAction
+                                KAck -> return ()
             
             requestAction action
             networkLoop info srv env game'
@@ -143,8 +147,8 @@ runGameS srv_addr sub_addr usrname passwrd mTable initialAgent = do
         notif  <- newTQueue
         return $ ClientEnv gState req rsp notif
 
-    -- Run the ZMQ flow
     runZMQ $ do
+        -- 1. Setup Phase: Authorize and Join Table
         srv <- socket Req
         connect srv srv_addr
 
@@ -162,21 +166,16 @@ runGameS srv_addr sub_addr usrname passwrd mTable initialAgent = do
 
         -- Standard Game Setup after table is identified
         subscribe info (BS.pack tId)
+        -- Small delay to let ZMQ subscription propagate
         liftIO $ threadDelay 200000 
         
         sec <- joinTable srv p tId
+        
+        -- 2. Game Phase: Run Agent and Network Loop
         let g = mkGame p tId sec
         
-        liftIO $ concurrently_
-            (runAgentThread env initialAgent)
-            (runZMQ $ do
-                -- Inner ZMQ context for the network loop (or we could pass the existing one)
-                -- Actually, runZMQ creates a new context. To share sockets we'd need to pass them.
-                -- But sockets can't be shared across contexts. Let's just create new ones for simplicity.
-                srv' <- socket Req
-                connect srv' srv_addr
-                info' <- socket Sub
-                connect info' sub_addr
-                subscribe info' (BS.pack tId)
-                networkLoop info' srv' env g
-            )
+        -- Fork the Agent thread (which is IO)
+        liftIO $ void $ forkIO $ runAgentThread env initialAgent
+        
+        -- Run the network loop in the SAME ZMQ session, using the SAME sockets
+        networkLoop info srv env g

@@ -100,10 +100,11 @@ joinTable :: ServerContext -> String -> String -> String -> Either String (Strin
 joinTable ctx name injectedId tId = do
     table <- maybeToEither "ERROR Table does not exist" (getTable ctx tId)
     let currentPlayers = tPlayers table
-        alreadyInTable = name `elem` map pName currentPlayers
-    if alreadyInTable
-        then Left "ERROR User already in table"
-        else if length currentPlayers >= 4
+        alreadyInTable = find (\p -> pName p == name) currentPlayers
+    case alreadyInTable of
+        Just user -> Right (uChannel user, ctx) -- Return existing secret
+        Nothing -> 
+            if length currentPlayers >= 4
             then Left "ERROR Table is already full"
             else let newTable = table { tPlayers = currentPlayers ++ [ServerUser name injectedId] }
                      ctx' = ctx { scTables = Map.insert tId newTable (scTables ctx) }
@@ -113,7 +114,7 @@ joinTable ctx name injectedId tId = do
 startTable :: ServerContext -> String -> Maybe (ServerTable, ServerContext)
 startTable ctx tId = do
     table <- getTable ctx tId
-    if length (tPlayers table) == 4
+    if length (tPlayers table) == 4 && tPhase table == Lobby
         then
             let pNames = map pName (tPlayers table)
                 updatedTable = table { tPhase = WaitingForRule }
@@ -554,6 +555,24 @@ handleCommand' ctx ["MATCH", usr, chan, p2, p3, p4]
                 else
                     return ("ERROR You must inform 3 or 4 other valid players", [], ctx)
             _ -> return ("ERROR No recent active user list", [], ctx)
+
+----------------------------------------------------------------------
+-- SYNC <username> <secret>
+----------------------------------------------------------------------
+handleCommand' ctx ["SYNC", usr, sec] = do
+    case validateTableMembership ctx usr sec of
+        Left err -> return (err, [], ctx)
+        Right (_tId, table, _pIndex) -> do
+            let names = map pName (tPlayers table)
+                phaseStr = show (tPhase table)
+                turnName = names !! tActiveTurn table
+                ruleList = if tPhase table == WaitingForRule 
+                           then unwords (map show (availableRulesForPlayer (tPlayedHands table) turnName))
+                           else if null (tPlayedHands table) then "NONE" else show (snd (last (tPlayedHands table)))
+                scores = unwords (map show (tTotalScores table))
+                -- Format: SYNC_DATA <p1> <p2> <p3> <p4> | <phase> | <turnName> | <rule/ruleList> | <scores>
+                resp = "SYNC_DATA " ++ unwords names ++ " | " ++ phaseStr ++ " | " ++ turnName ++ " | " ++ ruleList ++ " | " ++ scores
+            return (resp, [], ctx)
 
 ----------------------------------------------------------------------
 -- FALLBACK

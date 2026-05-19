@@ -254,6 +254,70 @@ function Game(user) {
         socket.emit('action', cmd);
     };
 
+    this.sync = function() {
+        this.sendAction('SYNC', '', function(msg) {
+            if (msg.startsWith('SYNC_DATA')) {
+                var parts = msg.split(' | ');
+                var players = parts[0].split(' ').slice(1);
+                var phase = parts[1];
+                var turnName = parts[2];
+                var rule = parts[3];
+                var scores = parts[4].split(' ');
+
+                this.table.setPlayers(players);
+                this.table.endHand(scores); // Sets total scores
+                
+                this.turn = turnName;
+                if (phase === 'WaitingForRule') {
+                    if (this.turn === this.user) {
+                        this.state = GameStates.WAITING_GAME;
+                        this.chooseGame(rule.split(' '));
+                    } else {
+                        this.state = GameStates.PENDING_GAME;
+                        show_message(TranslateMessage['starter_msg'](this.turn));
+                    }
+                } else if (rule !== 'NONE') {
+                    this.cur_game = rule;
+                    // Try to parse trump if it's POSITIVA
+                    var trump = rule.startsWith('POSITIVA') ? rule.slice(8) : null;
+                    var ruleLabel = TranslateChoices[rule] || rule;
+                    var trumpLabel = trump ? (TranslateChoices[trump] || trump) : null;
+                    show_message(TranslateMessage['hand_start'](ruleLabel, trumpLabel));
+                }
+
+                if (this.turn === this.user && phase === 'PlayingTrick []') {
+                    this.state = GameStates.WAITING_PLAY;
+                } else if (phase.startsWith('Bidding')) {
+                    if (this.turn === this.user) {
+                        this.state = GameStates.WAITING_BID;
+                        this.getBid();
+                    } else {
+                        this.state = GameStates.RUNNING;
+                    }
+                } else if (phase.startsWith('DecidingBid')) {
+                    if (this.turn === this.user) {
+                        this.state = GameStates.WAITING_DECISION;
+                        this.getDecision();
+                    }
+                } else if (phase.startsWith('ChoosingTrump')) {
+                    if (this.turn === this.user) {
+                        this.state = GameStates.WAITING_TRUMP;
+                        this.getTrump();
+                    }
+                } else {
+                    this.state = GameStates.RUNNING;
+                }
+                
+                // Request hand just in case
+                this.sendAction('GETHAND', '', function(response) {
+                    if (!response.startsWith('ERROR')) {
+                        this.hand.setCards(JSON.parse(response));
+                    }
+                }.bind(this));
+            }
+        }.bind(this));
+    };
+
     // Define the set of information that can be received from the server
     this.info = {
             'START': function(game, players) {

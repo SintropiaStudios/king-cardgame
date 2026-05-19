@@ -270,6 +270,7 @@ const t = useTranslations(lang);
                 document.getElementById('lobby-view').classList.add('hidden');
                 document.getElementById('game-view').classList.remove('hidden');
                 document.getElementById('current-table-title').textContent = `Mesa: ${tableName}`;
+                cur_game.sync(); // Sync state in case joining an active table
             } else { show_message("Error: " + msg); }
         });
     }

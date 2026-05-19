@@ -77,17 +77,23 @@ pickSmartCard :: KingGame -> SmartBot -> BS.ByteString
 pickSmartCard game bot =
     let handStr = roundCards game
         hand    = map parseCard handStr
-        (currentHand:_) = gameHands game
-        rule = case handRule currentHand of
-                Right r -> r
-                _       -> RVaza -- Should not happen
-        tableStr = curRound currentHand
-        table    = map parseCard tableStr
-        validCards = filter (isValidPlay rule tableStr handStr) handStr
-    in if null validCards
-       then mkPlayStr game "PLAY" (Just $ head handStr)
-       else let chosen = chooseCardByRule rule table hand (map parseCard validCards) bot game
-            in mkPlayStr game "PLAY" (Just $ unparseCard chosen)
+    in case gameHands game of
+        [] -> "" -- No active hand state, wait for sync or broadcast
+        (currentHand:_) ->
+            let rule = case handRule currentHand of
+                    Right r -> r
+                    _       -> RVaza -- Should not happen
+                tableStr = curRound currentHand
+                table    = map parseCard tableStr
+                validStr = filter (isValidPlay rule tableStr handStr) handStr
+                valid    = map parseCard validStr
+            in case valid of
+                (v:vs) -> 
+                    let chosen = chooseCardByRule rule table hand (v:vs) bot game
+                    in mkPlayStr game "PLAY" (Just $ unparseCard chosen)
+                [] -> case handStr of
+                        (fallback:_) -> mkPlayStr game "PLAY" (Just fallback)
+                        [] -> "" -- Truly empty hand, skip to avoid loop
 
 chooseCardByRule :: KingRule -> [Card] -> [Card] -> [Card] -> SmartBot -> KingGame -> Card
 chooseCardByRule rule table fullHand valid bot game
@@ -97,18 +103,22 @@ chooseCardByRule rule table fullHand valid bot game
 
 -- | Strategy for Positive Games: Win tricks efficiently
 playPositive :: KingRule -> [Card] -> [Card] -> [Card] -> Card
-playPositive rule [] _ valid = maximum valid -- Lead strong
 playPositive rule table _ valid =
-    let ledSuit = cardSuit (head table)
-        trumpSuit = getTrumpSuit rule
-        isTrump c = Just (cardSuit c) == trumpSuit
-        
-        -- Can I win?
-        currentWinner = determineWinnerIdx rule ledSuit table
-        winningCards = filter (beats rule ledSuit (table !! currentWinner)) valid
-    in if null winningCards
-       then minimum valid -- Can't win, throw away low
-       else minimum winningCards -- Win as cheaply as possible
+    case table of
+        [] -> case valid of
+                (v:vs) -> maximum (v:vs) -- Lead strong
+                []     -> Card Ace Spades -- Should not be reachable as valid is non-empty
+        (ledCard:_) ->
+            let ledSuit = cardSuit ledCard
+                trumpSuit = getTrumpSuit rule
+                isTrump c = Just (cardSuit c) == trumpSuit
+                
+                -- Can I win?
+                currentWinner = determineWinnerIdx rule ledSuit table
+                winningCards = filter (beats rule ledSuit (table !! currentWinner)) valid
+            in if null winningCards
+               then minimum valid -- Can't win, throw away low
+               else minimum winningCards -- Win as cheaply as possible
 
 -- | Strategy for 2ULTIMAS: Win early to shed high cards
 play2Ultimas :: [Card] -> [Card] -> [Card] -> KingGame -> Card
@@ -120,25 +130,31 @@ play2Ultimas table fullHand valid game =
 
 -- | Strategy for Negative Games: Avoid winning, target leaders
 playNegative :: KingRule -> [Card] -> [Card] -> [Card] -> SmartBot -> KingGame -> Card
-playNegative rule [] _ valid _ _ = minimum valid -- Lead low
 playNegative rule table fullHand valid bot game =
-    let ledSuit = cardSuit (head table)
-        currentWinnerIdx = determineWinnerIdx rule ledSuit table
-        winnerName = players (kingTable game) !! ((roundTurn (head (gameHands game)) + currentWinnerIdx) `mod` 4)
-        
-        -- Table Awareness: Are we ganging up?
-        targetName = getMatchLeader game
-        isTargetWinner = winnerName == targetName && socialLevel bot > 0.5
-        
-        -- Standard losing strategy: highest card that doesn't win
-        losingCards = filter (not . beats rule ledSuit (table !! currentWinnerIdx)) valid
-    in if null losingCards
-       then if isTargetWinner
-            then maximum valid -- Penalty to leader!
-            else maximum valid -- Forced to win, take it with highest to shed it
-       else if isTargetWinner && any (isDanger rule) losingCards
-            then fromMaybe (maximum losingCards) (find (isDanger rule) (sortBy (comparing (invert . rankValue . cardRank)) losingCards))
-            else maximum losingCards
+    case table of
+        [] -> minimum valid -- Lead low
+        (ledCard:_) ->
+            let ledSuit = cardSuit ledCard
+                currentWinnerIdx = determineWinnerIdx rule ledSuit table
+                
+                -- Safely get winner name
+                winnerName = case (gameHands game, players (kingTable game)) of
+                    (h:_, plrs) | length plrs == 4 -> plrs !! ((roundTurn h + currentWinnerIdx) `mod` 4)
+                    _ -> ""
+                
+                -- Table Awareness: Are we ganging up?
+                targetName = getMatchLeader game
+                isTargetWinner = not (null winnerName) && winnerName == targetName && socialLevel bot > 0.5
+                
+                -- Standard losing strategy: highest card that doesn't win
+                losingCards = filter (not . beats rule ledSuit (table !! currentWinnerIdx)) valid
+            in if null losingCards
+               then if isTargetWinner
+                    then maximum valid -- Penalty to leader!
+                    else maximum valid -- Forced to win, take it with highest to shed it
+               else if isTargetWinner && any (isDanger rule) losingCards
+                    then fromMaybe (maximum losingCards) (find (isDanger rule) (sortBy (comparing (invert . rankValue . cardRank)) losingCards))
+                    else maximum losingCards
 
 ----------------------------------------------------------------------------------
 -- 4. Bidding & Auctions

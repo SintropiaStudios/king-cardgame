@@ -4,18 +4,21 @@
 module Main where
 
 import Control.Concurrent (forkIO, threadDelay)
-import Control.Monad (forever, forM_, void)
+import Control.Monad (forever, forM_, void, forM)
 import Data.Aeson (FromJSON, decode)
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Char8 as BS
 import GHC.Generics (Generic)
 import System.Environment (getEnv, lookupEnv)
 import System.IO (hSetBuffering, stdout, BufferMode(LineBuffering))
 import Data.Maybe (fromMaybe)
+import Data.List (find)
+import qualified Data.Map as Map
 
 import BaseClient
 import qualified KingClient as KC
 import KingAgent
-import System.ZMQ4.Monadic (runZMQ, socket, connect, Req(..), Sub(..), subscribe, liftIO)
+import System.ZMQ4.Monadic (runZMQ, socket, connect, Req(..), Sub(..), subscribe, liftIO, receive, send)
 
 data BotConfig = BotConfig
     { name :: String
@@ -48,26 +51,40 @@ main = do
     let bots = fromMaybe [] (decode poolData :: Maybe [BotConfig])
     putStrLn $ "Loaded " ++ show (length bots) ++ " bot configurations."
 
-    -- For each bot, start a manager thread that idles and forks workers
-    forM_ (zip [1..] bots) $ \(idx, config) -> forkIO $ runZMQ $ do
+    -- Start ONE manager thread that handles ALL bots in a single context
+    void $ forkIO $ runZMQ $ do
         srv <- socket Req
         connect srv srvAddr
         info <- socket Sub
         connect info subAddr
         
-        -- Authorize as the "base" bot name
-        p <- KC.authorize srv info (name config) (name config)
-        liftIO $ putStrLn $ "[Manager] " ++ name config ++ " is online and idling."
+        players <- forM bots $ \config -> do
+            p <- KC.authorize srv info (name config) (name config)
+            liftIO $ putStrLn $ "[Manager] " ++ name config ++ " is online and idling."
+            return (p, config)
         
-        let managerLoop instanceCounter = do
-                -- Wait for an invitation
-                tId <- idleLoop info srv p
-                -- Fork a worker to handle the table
-                liftIO $ void $ forkIO $ runWorker srvAddr subAddr tId (name config) config instanceCounter
-                -- Continue listening for more invites
-                managerLoop (instanceCounter + 1)
+        let managerLoop counters = do
+                msg <- receive info
+                let strMsg = BS.unpack msg
+                case words strMsg of
+                    [chan, "CONFIRM_AVAILABLE"] -> do
+                        case find (\(p, _) -> KC.channel p == chan) players of
+                            Just (p, _) -> do
+                                send srv [] $ BS.pack $ "AVAILABLE " ++ KC.user p ++ " " ++ chan
+                                void $ receive srv
+                            Nothing -> return ()
+                        managerLoop counters
+                    [chan, "ASKJOIN", tId] -> do
+                        case find (\(p, _) -> KC.channel p == chan) players of
+                            Just (p, config) -> do
+                                let usrName = KC.user p
+                                    iid = fromMaybe 1 (Map.lookup usrName counters)
+                                liftIO $ void $ forkIO $ runWorker srvAddr subAddr tId usrName config iid
+                                managerLoop (Map.insert usrName (iid + 1) counters)
+                            Nothing -> managerLoop counters
+                    _ -> managerLoop counters
         
-        managerLoop 1
+        managerLoop Map.empty
 
     -- Keep the main thread alive
     forever $ threadDelay 1000000

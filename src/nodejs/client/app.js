@@ -13,7 +13,7 @@ const ZMQ_SUB_ADDR = process.env.ZMQ_SUB_ADDR || "tcp://127.0.0.1:5556";
 const server = http.createServer();
 const io = new Server(server, {
     cors: {
-        origin: [FRONTEND_URL, "https://raffaine.github.io", "https://sintropiastudios.github.io"],
+        origin: [FRONTEND_URL, "http://localhost:4322", "https://raffaine.github.io", "https://sintropiastudios.github.io"],
         methods: ["GET", "POST"],
         credentials: true
     }
