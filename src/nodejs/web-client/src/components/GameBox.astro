@@ -85,10 +85,12 @@ const t = useTranslations(lang);
     <div id="game-view" class="view-container hidden">
         <main id="game-container">
             <div id="infobox"><span id="infocontent"></span></div>
+            <div id="summaryArea"></div>
             <div id="header">
                 <button id="console-btn">Console</button>
                 <button id="return-lobby-btn">Lobby</button>
                 <h2 id="current-table-title">King Online</h2>
+                <div id="current-rule-display" class="rule-badge">Esperando...</div>
             </div>
             <div id="table" class="playingField">
                 <div id="name1" class="textBox name">Right</div>
@@ -225,6 +227,71 @@ const t = useTranslations(lang);
             e.addClass('active');
             console.log("Choice Box Created for:", action, choices);
         }
+
+        // @ts-ignore
+        window.Game.prototype.createAlertBox = function(title, body, buttonLabel, callback) {
+            const container = $('#summaryArea');
+            container.empty().addClass('active');
+            const e = $("<div class='choice-modal active'></div>").appendTo(container);
+            $("<div class='choice-header'></div>").appendTo(e).append(`<h2>${title}</h2>`);
+            $("<div class='choice-body'></div>").appendTo(e).append(body);
+            
+            const btnContainer = $("<div class='choice-actions'></div>").appendTo(e);
+            $('<button></button>')
+                .text(buttonLabel)
+                .addClass('primary-btn')
+                .on('click', () => {
+                    container.empty().removeClass('active');
+                    if (callback) callback();
+                })
+                .appendTo(btnContainer);
+        };
+
+        // @ts-ignore
+        window.Game.prototype.createGameOverBox = function(title, body) {
+            const container = $('#summaryArea');
+            container.empty().addClass('active');
+            const e = $("<div class='choice-modal active'></div>").appendTo(container);
+            $("<div class='choice-header'></div>").appendTo(e).append(`<h2>${title}</h2>`);
+            $("<div class='choice-body'></div>").appendTo(e).append(body);
+            
+            const btnContainer = $("<div class='choice-actions'></div>").appendTo(e);
+            
+            // @ts-ignore
+            const t = TranslateMessage;
+
+            // Rematch Button
+            $('<button></button>')
+                .text(t['rematch'])
+                .addClass('primary-btn')
+                .on('click', () => {
+                    const opponents = Object.keys(this.table.players).filter(p => p !== this.user);
+                    console.log("Requesting Rematch with:", opponents);
+                    this.sendAction('MATCH', opponents.join(' '), (tId) => {
+                        container.empty().removeClass('active');
+                        if (tId.startsWith('ERROR')) {
+                            alert(tId);
+                            document.getElementById('return-lobby-btn')?.click();
+                        } else {
+                            // Join the new table
+                            setTimeout(() => joinTable(tId), 500);
+                        }
+                    });
+                })
+                .appendTo(btnContainer);
+
+            // Back to Lobby Button
+            $('<button></button>')
+                .text(t['back_to_lobby'])
+                .addClass('secondary-btn')
+                .css('background', 'rgba(255,255,255,0.1)')
+                .css('color', 'white')
+                .on('click', () => {
+                    container.empty().removeClass('active');
+                    document.getElementById('return-lobby-btn')?.click();
+                })
+                .appendTo(btnContainer);
+        };
     }
 
     patchChoiceBox();
@@ -489,7 +556,7 @@ const t = useTranslations(lang);
     overflow: hidden !important;
   }
 
-  #choiceArea {
+  #choiceArea, #summaryArea {
     position: fixed !important;
     top: 50% !important;
     left: 50% !important;
@@ -514,7 +581,7 @@ const t = useTranslations(lang);
     overflow: hidden !important;
   }
 
-  #infobox.animated, #choiceArea.active {
+  #infobox.animated, #choiceArea.active, #summaryArea.active {
     display: flex !important;
   }
 
@@ -882,6 +949,21 @@ const t = useTranslations(lang);
   }
 
   .exit-btn { background: rgba(255,255,255,0.1); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+
+  .rule-badge {
+    background: #d4af37 !important;
+    color: black !important;
+    padding: 0.4rem 1.2rem !important;
+    border-radius: 20px !important;
+    font-weight: 800 !important;
+    font-size: 1.1rem !important;
+    text-transform: uppercase !important;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3) !important;
+    border: 2px solid rgba(0,0,0,0.1) !important;
+    margin-left: 1rem !important;
+    display: inline-block;
+    vertical-align: middle !important;
+  }
 
   @media (max-width: 850px) {
     .lobby-main-content { grid-template-columns: 1fr; }

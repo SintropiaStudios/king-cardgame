@@ -63,7 +63,13 @@ var TranslatedMessages = {
         'you': 'Você',
         'passed': 'passou.',
         'offered': (val) => `ofereceu ${val}.`,
-        'player_left': (player) => `${player} saiu da mesa. Partida encerrada.`
+        'player_left': (player) => `${player} saiu da mesa. Partida encerrada.`,
+        'hand_summary_title': 'Fim da Mão',
+        'game_over_title': 'Fim de Jogo',
+        'winner_is': (winner, score) => `${winner} venceu com ${score} pontos!`,
+        'continue': 'Continuar',
+        'back_to_lobby': 'Voltar ao Lobby',
+        'rematch': 'Jogar Novamente'
     },
     'en' : {
         'new_hand' : ["New Hand, what's the game?", "These are the choices, click the one you want to play."],
@@ -80,7 +86,13 @@ var TranslatedMessages = {
         'you': 'You',
         'passed': 'passed.',
         'offered': (val) => `offered ${val}.`,
-        'player_left': (player) => `${player} left the table. Match over.`
+        'player_left': (player) => `${player} left the table. Match over.`,
+        'hand_summary_title': 'Hand Over',
+        'game_over_title': 'Game Over',
+        'winner_is': (winner, score) => `${winner} wins with ${score} points!`,
+        'continue': 'Continue',
+        'back_to_lobby': 'Back to Lobby',
+        'rematch': 'Rematch'
     },
 }
 
@@ -100,6 +112,7 @@ var GameStates = {
     PENDING_GAME: "STARTED BUT NO GAME",
     RUNNING: "RUNNING",
     ROUND_ENDING: "ENDING THE ROUND",
+    HAND_ENDING: "ENDING THE HAND",
     WAITING_GAME: "WAITING FOR GAME",
     WAITING_BID: "WAITING FOR A BID",
     WAITING_DECISION: "WAITING FOR DECISION",
@@ -150,7 +163,24 @@ function Game(user) {
     // Show user what hand options are available and get the choice
     this.chooseGame = function(choices) {
         var msg = TranslateMessage['new_hand'];
+        this.updateRuleDisplay('...');
         this.createChoiceBox( msg[0], msg[1], choices, 'GAME');
+    };
+
+    this.updateRuleDisplay = function(rule, trump) {
+        var el = document.getElementById('current-rule-display');
+        if (!el) return;
+        
+        if (rule === '...') {
+            el.textContent = '...';
+            return;
+        }
+        
+        var ruleLabel = TranslateChoices[rule] || rule;
+        var trumpLabel = trump ? (TranslateChoices[trump] || trump) : null;
+        var text = trumpLabel ? `${ruleLabel} (${trumpLabel})` : ruleLabel;
+        
+        el.textContent = text;
     };
 
     // Helper function used to generate option UI to the user
@@ -265,10 +295,11 @@ function Game(user) {
                 var scores = parts[4].split(' ');
 
                 this.table.setPlayers(players);
-                this.table.endHand(scores); // Sets total scores
+                this.table.setTotalScores(scores); // Use correct method for totals
                 
                 this.turn = turnName;
                 if (phase === 'WaitingForRule') {
+                    this.updateRuleDisplay('...');
                     if (this.turn === this.user) {
                         this.state = GameStates.WAITING_GAME;
                         this.chooseGame(rule.split(' '));
@@ -280,7 +311,10 @@ function Game(user) {
                     this.cur_game = rule;
                     // Try to parse trump if it's POSITIVA
                     var trump = rule.startsWith('POSITIVA') ? rule.slice(8) : null;
-                    var ruleLabel = TranslateChoices[rule] || rule;
+                    var baseRule = trump ? 'POSITIVA' : rule;
+                    this.updateRuleDisplay(baseRule, trump);
+                    
+                    var ruleLabel = TranslateChoices[baseRule] || baseRule;
                     var trumpLabel = trump ? (TranslateChoices[trump] || trump) : null;
                     show_message(TranslateMessage['hand_start'](ruleLabel, trumpLabel));
                 }
@@ -318,6 +352,71 @@ function Game(user) {
         }.bind(this));
     };
 
+    this.showHandSummary = function(scores) {
+        var title = TranslateMessage['hand_summary_title'];
+        var bodyHTML = "<table style='width:100%; text-align:center;'><tr><th>Player</th><th>Hand</th><th>Total</th></tr>";
+        for (var name in this.table.players) {
+            var pos = this.table.players[name];
+            var value = parseInt(scores[(this.table.table_index + pos) % PlayerPosition.CAPACITY]);
+            var newTotal = this.table.total_score[name] + value;
+            bodyHTML += `<tr><td>${name}</td><td>${value}</td><td>${newTotal}</td></tr>`;
+        }
+        bodyHTML += "</table>";
+        
+        if (this.createAlertBox) {
+            this.createAlertBox(title, bodyHTML, TranslateMessage['continue'], () => {
+                this.table.endHand(scores);
+                if (this.isGameOver) {
+                    this.state = GameStates.GAME_OVER;
+                    this.showGameOver(this.finalScores);
+                } else if (this.state === GameStates.HAND_ENDING) {
+                    // Only reset to RUNNING if a background message (like TURN or BID) 
+                    // hasn't already moved us to a waiting state
+                    this.state = GameStates.RUNNING;
+                }
+            });
+        } else {
+            this.table.endHand(scores);
+            if (this.isGameOver) {
+                this.state = GameStates.GAME_OVER;
+                this.showGameOver(this.finalScores);
+            } else if (this.state === GameStates.HAND_ENDING) {
+                this.state = GameStates.RUNNING;
+            }
+        }
+    };
+
+    this.showGameOver = function(scores) {
+        var title = TranslateMessage['game_over_title'];
+        var maxScore = -Infinity;
+        var winner = "";
+        for (var name in this.table.players) {
+            var pos = this.table.players[name];
+            var value = parseInt(scores[(this.table.table_index + pos) % PlayerPosition.CAPACITY]);
+            if (value > maxScore) {
+                maxScore = value;
+                winner = name;
+            }
+        }
+        
+        var bodyHTML = `<h3 style='color:#d4af37; margin-bottom:1rem;'>${TranslateMessage['winner_is'](winner, maxScore)}</h3>`;
+        bodyHTML += "<table style='width:100%; text-align:center; margin-bottom:1rem;'><tr><th>Player</th><th>Final Score</th></tr>";
+        for (var name in this.table.players) {
+            var pos = this.table.players[name];
+            var value = scores[(this.table.table_index + pos) % PlayerPosition.CAPACITY];
+            bodyHTML += `<tr><td>${name}</td><td>${value}</td></tr>`;
+        }
+        bodyHTML += "</table>";
+
+        if (this.createGameOverBox) {
+            this.createGameOverBox(title, bodyHTML);
+        }
+    };
+
+    this.isBlockingPhase = function() {
+        return this.state === GameStates.ROUND_ENDING || this.state === GameStates.HAND_ENDING;
+    };
+
     // Define the set of information that can be received from the server
     this.info = {
             'START': function(game, players) {
@@ -325,73 +424,51 @@ function Game(user) {
                 game.table.setPlayers(players);
             },
             'STARTHAND': function(game, params) {
-                //params[0] is starter, params[1:-1] is list of possible games as strings
-                //THE TIMEOUT IS TO FIX A RACE CONDITION IF YOU ARE THE LAST ONE TO JOIN
-                if (game.state === GameStates.ROUND_ENDING) {
-                    setTimeout(function() {
-                        game.info['STARTHAND'](game, params);
-                    }, 1000);
+                if (game.isBlockingPhase()) {
+                    setTimeout(() => game.info['STARTHAND'](game, params), 500);
                 } else {
-                    setTimeout( function() {
-                        // Attempt to get the player's hand
-                        game.sendAction('GETHAND', '', function(response) {
-                            if (!response.startsWith('ERROR')) {
-                                console.log(response);
-                                game.hand.setCards(JSON.parse(response));
-                            }
+                    game.table.resetHandScores();
+                    game.updateRuleDisplay('...');
+                    setTimeout( () => {
+                        game.sendAction('GETHAND', '', (response) => {
+                            if (!response.startsWith('ERROR')) game.hand.setCards(JSON.parse(response));
                         });
-                    }, 1000);
+                    }, 500);
 
-                    // Set the state of the game according to whom is the starter
                     game.table.setStarter(params[0]);
-                    
-                    var startMsg = (params[0] === game.user) 
-                        ? TranslateMessage['new_hand'][0] 
-                        : TranslateMessage['starter_msg'](params[0]);
+                    var startMsg = (params[0] === game.user) ? TranslateMessage['new_hand'][0] : TranslateMessage['starter_msg'](params[0]);
                     show_message(startMsg);
 
                     if(params[0] === game.user) {
                         game.state = GameStates.WAITING_GAME;
                         game.chooseGame(params.slice(1));
-                    } else {
-                        game.state = GameStates.PENDING_GAME;
-                    }
+                    } else { game.state = GameStates.PENDING_GAME; }
                 }
             },
             'GAME': function(game, choice) {
-                //Receive info about what are the current rules
-                if (game.state === GameStates.ROUND_ENDING) {
-                    setTimeout(function() {
-                        game.info['GAME'](game, choice);
-                    }, 1000);
+                if (game.isBlockingPhase()) {
+                    setTimeout(() => game.info['GAME'](game, choice), 500);
                 } else {
                     game.cur_game = choice[0];
                     game.state = GameStates.RUNNING;
+                    game.updateRuleDisplay(choice[0], choice[1]);
+                    
                     var ruleLabel = TranslateChoices[choice[0]] || choice[0];
                     var trumpLabel = choice[1] ? (TranslateChoices[choice[1]] || choice[1]) : null;
                     show_message(TranslateMessage['hand_start'](ruleLabel, trumpLabel));
                 }
             },
             'TURN': function(game, player) {
-                //No action unless you are the player
-                if (game.state === GameStates.ROUND_ENDING) {
-                    setTimeout(function() {
-                        game.info['TURN'](game, player);
-                    }, 1000);
+                if (game.isBlockingPhase()) {
+                    setTimeout(() => game.info['TURN'](game, player), 500);
                 } else {
                     game.turn = player[0];
-                    if (game.turn == game.user) {
-                        game.state = GameStates.WAITING_PLAY;
-                    } else {
-                        game.state = GameStates.RUNNING;
-                    }
+                    game.state = (game.turn == game.user) ? GameStates.WAITING_PLAY : GameStates.RUNNING;
                 }
             },
             'PLAY': function(game, card) {
-                if (game.state === GameStates.ROUND_ENDING) {
-                    setTimeout(function() {
-                        game.info['PLAY'](game, card);
-                    }, 1000);
+                if (game.isBlockingPhase()) {
+                    setTimeout(() => game.info['PLAY'](game, card), 500);
                 } else {
                     game.playCard(card[0]);
                 }
@@ -400,31 +477,30 @@ function Game(user) {
                 game.state = GameStates.ROUND_ENDING;
                 setTimeout( function() {
                     game.table.endRound(winner[0], parseInt(winner[1]));
-                    game.state = GameStates.RUNNING;
+                    if (game.state === GameStates.ROUND_ENDING) game.state = GameStates.RUNNING;
                 }, 1500);
             },
             'ENDHAND': function(game, scores) {
                 if (game.state === GameStates.ROUND_ENDING) {
-                    setTimeout(function() {
-                        game.info['ENDHAND'](game, scores);
-                    }, 1000);
+                    setTimeout(() => game.info['ENDHAND'](game, scores), 500);
                 } else {
-                    game.table.endHand(scores);
+                    game.state = GameStates.HAND_ENDING;
+                    game.showHandSummary(scores);
                 }
             },
             'GAMEOVER': function(game, score) {
-                //TODO: I'm planning to return the final score here
+                game.isGameOver = true;
+                game.finalScores = score;
+                if (!game.isBlockingPhase()) {
+                    game.state = GameStates.GAME_OVER;
+                    game.showGameOver(score);
+                }
             },
             'BID': function(game, player) {
-                // Collect current bidder
                 game.table.setBidder(player[0]);
-
-                // Setup screen for bidding if user is player
                 if (player[0] === game.user) {
-                    if (game.state === GameStates.ROUND_ENDING) {
-                        setTimeout(function() {
-                            game.info['BID'](game, player);
-                        }, 1000);
+                    if (game.isBlockingPhase()) {
+                        setTimeout(() => game.info['BID'](game, player), 500);
                     } else {
                         game.state = GameStates.WAITING_BID;
                         game.getBid();
@@ -432,16 +508,12 @@ function Game(user) {
                 }
             },
             'BIDS': function(game, value) {
-                // Collect current bid
                 game.table.setBid(value[0]);
             },
             'DECIDE': function(game, player) {
-                // Setup screen if I'm the one that needs to decide
                 if (player[0] === game.user) {
-                    if (game.state === GameStates.ROUND_ENDING) {
-                        setTimeout(function() {
-                            game.info['DECIDE'](game, player);
-                        }, 1000);
+                    if (game.isBlockingPhase()) {
+                        setTimeout(() => game.info['DECIDE'](game, player), 500);
                     } else {
                         game.state = GameStates.WAITING_DECISION;
                         game.getDecision();
@@ -449,26 +521,18 @@ function Game(user) {
                 }
             },
             'CHOOSETRUMP': function(game, player) {
-                // Setup screen if I'm the one that needs to decide
                 if (player[0] === game.user) {
-                   if (game.state === GameStates.ROUND_ENDING) {
-                        setTimeout(function() {
-                            game.info['ENDHAND'](game, scores);
-                        }, 1000);
+                   if (game.isBlockingPhase()) {
+                        setTimeout(() => game.info['CHOOSETRUMP'](game, player), 500);
                     } else {
                         game.state = GameStates.WAITING_TRUMP;
                         game.getTrump();
                     }
                 }
-                //TODO: Bid is over, on else show a message stating what happened
-                // e.g (No bids were made, A is gonna choose)
-                // e.g (A offered X but B refused, B to choose )
             },
             'LEAVE': function(game, player) {
                 show_message(TranslateMessage['player_left'](player[0]));
-                setTimeout(function() {
-                    document.getElementById('return-lobby-btn')?.click();
-                }, 3000);
+                setTimeout(() => document.getElementById('return-lobby-btn')?.click(), 3000);
             }
         };
 
@@ -576,9 +640,26 @@ function Table(user) {
     this.endHand = function(scores) {
         for (var name in this.players) {
             var pos = this.players[name];
-            var value = scores[(this.table_index + pos) % PlayerPosition.CAPACITY];
+            var value = parseInt(scores[(this.table_index + pos) % PlayerPosition.CAPACITY]);
+            this.hand_score[name] = value;
+            this.total_score[name] += value;
+            $(`#score${pos}`).text(`${this.hand_score[name]} / ${this.total_score[name]}`);
+        }
+    };
+
+    this.resetHandScores = function() {
+        for (var name in this.players) {
+            var pos = this.players[name];
             this.hand_score[name] = 0;
-            this.total_score[name] += parseInt(value);
+            $(`#score${pos}`).text(`${this.hand_score[name]} / ${this.total_score[name]}`);
+        }
+    };
+
+    this.setTotalScores = function(scores) {
+        for (var name in this.players) {
+            var pos = this.players[name];
+            var value = parseInt(scores[(this.table_index + pos) % PlayerPosition.CAPACITY]);
+            this.total_score[name] = value;
             $(`#score${pos}`).text(`${this.hand_score[name]} / ${this.total_score[name]}`);
         }
     };
