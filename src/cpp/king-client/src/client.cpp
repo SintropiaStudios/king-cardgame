@@ -72,13 +72,16 @@ struct KingClient::Impl {
     void thread_loop() {
         std::string reqUrl = "tcp://" + hostAddress + ":" + std::to_string(reqPort);
         std::string subUrl = "tcp://" + hostAddress + ":" + std::to_string(subPort);
+        int linger = 0;
+        int timeout = 500; // 500ms timeout
 
         try {
             reqSocket = std::make_unique<zmq::socket_t>(context, zmq::socket_type::req);
             subSocket = std::make_unique<zmq::socket_t>(context, zmq::socket_type::sub);
 
-            int linger = 0;
             reqSocket->set(zmq::sockopt::linger, linger);
+            reqSocket->set(zmq::sockopt::rcvtimeo, timeout);
+            reqSocket->set(zmq::sockopt::sndtimeo, timeout);
             subSocket->set(zmq::sockopt::linger, linger);
 
             reqSocket->connect(reqUrl);
@@ -126,6 +129,8 @@ struct KingClient::Impl {
                         // Recreate REQ socket to clear state
                         reqSocket = std::make_unique<zmq::socket_t>(context, zmq::socket_type::req);
                         reqSocket->set(zmq::sockopt::linger, linger);
+                        reqSocket->set(zmq::sockopt::rcvtimeo, timeout);
+                        reqSocket->set(zmq::sockopt::sndtimeo, timeout);
                         reqSocket->connect(reqUrl);
 
                         queue_callback([cb = task.callback, msg = "ERROR " + std::string(e.what())]() {
