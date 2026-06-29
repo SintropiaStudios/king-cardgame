@@ -30,6 +30,8 @@ instance MonadGameEnv TestEnv where
                 return nextId
             [] -> error "No IDs available"
 
+    shuffleList xs = return xs
+
     generateDeck :: TestEnv [[KingCard]]
     generateDeck = do
         (ids, decks) <- get

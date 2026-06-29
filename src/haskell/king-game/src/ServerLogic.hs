@@ -27,6 +27,7 @@ import KingClient (KingGame(secret))
 class Monad m => MonadGameEnv m where
     generateId   :: m String         -- For Auth channels, Table IDs, Secrets
     generateDeck :: m [[KingCard]]   -- Always returns 4 lists of 13 cards
+    shuffleList  :: [a] -> m [a]
 
 ----------------------------------------------------------------------
 -- Internal data
@@ -222,17 +223,29 @@ handleCommand' ctx ("JOIN":usr:chan:tId:_)
         secret <- generateId
         case joinTable ctx usr secret tId of
             Left error -> return (error, [], ctx)
-            Right (secret, ctx') -> case startTable ctx' tId of
-                Nothing               -> return (secret, [], ctx')
-                Just (table, ctx'') -> do
-                    initialDeck <- generateDeck
-                    let handsMap = Map.fromList $ zip (map pName (tPlayers table)) initialDeck
-                        updatedT = table { tHands = handsMap }
-                        finalCtx = ctx'' { scTables = Map.insert tId updatedT (scTables ctx'') }
-                        tablePlayers = getNamesOnTable' table
-                        msgTableOrder = tId ++ " START " ++ unwords tablePlayers
-                        msgInitialHand = tId ++ " STARTHAND " ++ head tablePlayers ++ " " ++ unwords (map show startingRules)
-                    return (secret, [msgTableOrder, msgInitialHand], finalCtx)
+            Right (secret, ctx') -> do
+                let mTable = getTable ctx' tId
+                    shouldStart = case mTable of
+                        Just t  -> length (tPlayers t) == 4 && tPhase t == Lobby
+                        Nothing -> False
+                if shouldStart
+                    then do
+                        let Just table = mTable
+                        shuffledPlayers <- shuffleList (tPlayers table)
+                        let shuffledTable = table { tPlayers = shuffledPlayers }
+                            ctx'' = ctx' { scTables = Map.insert tId shuffledTable (scTables ctx') }
+                        case startTable ctx'' tId of
+                            Nothing               -> return (secret, [], ctx'')
+                            Just (table', ctx''') -> do
+                                initialDeck <- generateDeck
+                                let handsMap = Map.fromList $ zip (map pName (tPlayers table')) initialDeck
+                                    updatedT = table' { tHands = handsMap }
+                                    finalCtx = ctx''' { scTables = Map.insert tId updatedT (scTables ctx''') }
+                                    tablePlayers = getNamesOnTable' table'
+                                    msgTableOrder = tId ++ " START " ++ unwords tablePlayers
+                                    msgInitialHand = tId ++ " STARTHAND " ++ head tablePlayers ++ " " ++ unwords (map show startingRules)
+                                return (secret, [msgTableOrder, msgInitialHand], finalCtx)
+                    else return (secret, [], ctx')
 
 ----------------------------------------------------------------------
 -- GETHAND <username> <secret>
