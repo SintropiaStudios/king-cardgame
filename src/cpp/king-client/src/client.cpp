@@ -56,6 +56,9 @@ struct KingClient::Impl {
     std::function<void(const std::string&, const std::vector<int>&)> onGameOver;
     std::function<void(const std::string&, const std::string&)> onLeave;
     std::function<void(const std::string&)> onAskJoin;
+    std::function<void(const std::vector<std::string>&)> onUserList;
+    std::string authorizedUsername;
+    std::string sessionChannel;
 
     Impl() : context(1) {}
 
@@ -279,6 +282,21 @@ struct KingClient::Impl {
                 if (onAskJoin) onAskJoin(tableUuid);
             });
         }
+        else if (cmd == "CONFIRM_AVAILABLE") {
+            std::string respCmd = "AVAILABLE " + authorizedUsername + " " + sessionChannel;
+            send_req(respCmd, [](const std::string& /*reply*/) {
+                // ignore
+            });
+        }
+        else if (cmd == "USERLIST") {
+            std::vector<std::string> users;
+            for (size_t i = 1; i < args.size(); ++i) {
+                users.push_back(args[i]);
+            }
+            queue_callback([this, users]() {
+                if (onUserList) onUserList(users);
+            });
+        }
     }
 };
 
@@ -328,10 +346,12 @@ void KingClient::update() {
 void KingClient::authorize(const std::string& username, const std::string& password,
                            std::function<void(bool success, const std::string& channel_or_error)> cb) {
     std::string cmd = "AUTHORIZE " + username + " " + password;
-    impl_->send_req(cmd, [this, cb](const std::string& reply) {
+    impl_->send_req(cmd, [this, username, cb](const std::string& reply) {
         if (reply.rfind("ERROR", 0) == 0) {
             cb(false, reply.substr(6));
         } else {
+            impl_->authorizedUsername = username;
+            impl_->sessionChannel = reply; // The reply to AUTHORIZE is the session channel
             subscribe(reply); // Automatically subscribe to our private session channel
             cb(true, reply);
         }
@@ -545,6 +565,46 @@ void KingClient::set_on_leave(std::function<void(const std::string&, const std::
 }
 void KingClient::set_on_ask_join(std::function<void(const std::string&)> cb) {
     impl_->onAskJoin = cb;
+}
+
+void KingClient::set_on_user_list(std::function<void(const std::vector<std::string>&)> cb) {
+    impl_->onUserList = cb;
+}
+
+void KingClient::leave_table(const std::string& username, const std::string& secret,
+                             std::function<void(bool success, const std::string& error)> cb) {
+    std::string cmd = "LEAVE " + username + " " + secret;
+    impl_->send_req(cmd, [cb](const std::string& reply) {
+        if (reply.rfind("ERROR", 0) == 0) {
+            cb(false, reply.substr(6));
+        } else {
+            cb(true, "");
+        }
+    });
+}
+
+void KingClient::list_users(std::function<void(bool success, const std::string& error)> cb) {
+    subscribe("user-list-channel");
+    impl_->send_req("LISTUSERS", [cb](const std::string& reply) {
+        if (reply.rfind("ERROR", 0) == 0) {
+            cb(false, reply.substr(6));
+        } else {
+            cb(true, "");
+        }
+    });
+}
+
+void KingClient::invite_match(const std::string& username, const std::string& channel,
+                              const std::string& p2, const std::string& p3, const std::string& p4,
+                              std::function<void(const std::string& table_uuid, const std::string& error)> cb) {
+    std::string cmd = "MATCH " + username + " " + channel + " " + p2 + " " + p3 + " " + p4;
+    impl_->send_req(cmd, [cb](const std::string& reply) {
+        if (reply.rfind("ERROR", 0) == 0) {
+            cb("", reply.substr(6));
+        } else {
+            cb(reply, "");
+        }
+    });
 }
 
 } // namespace king

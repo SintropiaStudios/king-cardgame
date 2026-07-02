@@ -62,6 +62,15 @@ public:
     void leave_game(const std::string& username, const std::string& secret,
                     std::function<void(bool success, const std::string& error)> cb);
 
+    void leave_table(const std::string& username, const std::string& secret,
+                     std::function<void(bool success, const std::string& error)> cb);
+
+    void list_users(std::function<void(bool success, const std::string& error)> cb);
+
+    void invite_match(const std::string& username, const std::string& channel,
+                      const std::string& p2, const std::string& p3, const std::string& p4,
+                      std::function<void(const std::string& table_uuid, const std::string& error)> cb);
+
     // --- Manual PUB/SUB Subscriptions ---
     void subscribe(const std::string& topic);
     void unsubscribe(const std::string& topic);
@@ -81,6 +90,7 @@ public:
 
     // Private updates
     void set_on_ask_join(std::function<void(const std::string& table_uuid)> cb);
+    void set_on_user_list(std::function<void(const std::vector<std::string>& users)> cb);
 
 private:
     struct Impl;
